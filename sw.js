@@ -11,9 +11,9 @@ const CACHE_FILES = [
 
 // CDN 文件列表（单独缓存）
 const CDN_FILES = [
-    './ag-grid-community-31.0.3/package/styles/ag-grid.min.css.x',
-    './ag-grid-community-31.0.3/package/styles/ag-theme-alpine.min.css.x',
-    './ag-grid-community-31.0.3/package/dist/ag-grid-community.min.js.x',
+    './ag-grid-community-31.0.3/package/styles/ag-grid.min.css',
+    './ag-grid-community-31.0.3/package/styles/ag-theme-alpine.min.css',
+    './ag-grid-community-31.0.3/package/dist/ag-grid-community.min.js',
     './xlsx.full.min.js',
     './pinyin-pro.min.js'
 ];
