@@ -1,0 +1,26 @@
+{
+    "name": "商品查询系统",
+    "short_name": "商品查询",
+    "description": "商品查询系统 - 支持扫码、搜索、筛选的离线商品管理工具",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#f1f5f9",
+    "theme_color": "#2563eb",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["utilities", "productivity"],
+    "lang": "zh-CN"
+}
