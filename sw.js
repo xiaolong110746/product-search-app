@@ -1,5 +1,5 @@
 // Service Worker - 商品查询系统
-const CACHE_NAME = 'product-query-v2';
+const CACHE_NAME = 'product-query-v1';
 
 // 需要缓存的文件列表
 const CACHE_FILES = [
