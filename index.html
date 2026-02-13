@@ -1,1 +1,1087 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品查询系统 - 自动记忆版</title>
+    
+    <!-- PWA 配置 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="商品查询">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- AG Grid 核心样式 (CDN) -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/ag-grid/31.0.3/styles/ag-grid.min.css">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/ag-grid/31.0.3/styles/ag-theme-alpine.min.css">
+    <!-- AG Grid 核心库 (CDN) -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/ag-grid/31.0.3/ag-grid-community.min.js"></script>
+    <!-- Excel 解析库 (CDN) -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- 拼音库 (CDN) -->
+    <script src="https://unpkg.com/pinyin-pro@3.18.2/dist/index.js"></script>
+    
+    <style>
+        :root { --primary-color: #2563eb; --bg-color: #f1f5f9; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 24px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+        h1 { margin: 0; font-size: 1.75rem; color: #0f172a; }
+        .subtitle { font-size: 1rem; color: #64748b; margin-top: 4px; }
+        
+        .btn { padding: 12px 20px; border-radius: 8px; font-size: 1rem; font-weight: 500; cursor: pointer; border: 1px solid #e2e8f0; background: white; color: #475569; transition: all 0.2s; }
+        .btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .btn-primary { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-danger { color: #dc2626; border-color: #fca5a5; }
+        .btn-danger:hover { background: #fef2f2; }
+        #fileInput { display: none; }
+        
+        .search-box { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; position: relative; }
+        .search-input { flex: 1; padding: 14px 18px; font-size: 1.25rem; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; transition: all 0.2s; }
+        .search-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+        
+        /* 状态徽章样式 */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 18px; border-radius: 20px;
+            font-size: 1.1rem; font-weight: 600;
+            opacity: 0; visibility: hidden; 
+            transition: all 0.2s ease;
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+        }
 
+        .status-badge.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .status-badge.found {
+            background-color: #dcfce7;
+            color: #15803d;
+            box-shadow: 0 2px 8px rgba(21, 128, 61, 0.2);
+        }
+
+        .status-badge.notfound {
+            background-color: #fee2e2;
+            color: #dc2626;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
+        }
+        
+        .grid-container { height: 550px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        
+        /* AG Grid 表格字体放大 */
+        .ag-theme-alpine { font-size: 16px; }
+        .ag-theme-alpine .ag-header-cell-label { justify-content: center; }
+        .ag-theme-alpine .ag-header-cell-text { font-size: 16px; font-weight: 600; }
+        .ag-theme-alpine .ag-cell { font-size: 16px; }
+        .ag-theme-alpine .ag-cell-value { display: flex; align-items: center; justify-content: center; }
+        
+        /* 行选中高亮样式 */
+        .ag-theme-alpine .ag-row-selected { background-color: #dbeafe !important; }
+        .ag-theme-alpine .ag-row-selected:hover { background-color: #bfdbfe !important; }
+        .ag-theme-alpine .ag-row:hover { background-color: #f1f5f9; }
+        
+        .highlight-text { background-color: #fef08a; color: #854d0e; padding: 0 4px; border-radius: 2px; font-weight: bold; }
+        
+        .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 1rem; color: #64748b; flex-wrap: wrap; gap: 8px; }
+        
+        /* 提示信息样式 */
+        .info-box {
+            margin-top: 12px;
+            padding: 14px 18px;
+            background-color: #dbeafe;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            color: #1e40af;
+            line-height: 1.6;
+        }
+        .info-box.success { background-color: #dcfce7; color: #166534; }
+        .info-box.warning { background-color: #fef3c7; color: #92400e; }
+        .info-box.error { background-color: #fee2e2; color: #991b1b; }
+        
+        .file-name { font-weight: 600; }
+        
+        /* 加载动画 */
+        .loading { 
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 20px; color: #64748b;
+        }
+        
+        /* 筛选状态提示区 */
+        .filter-status {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            background-color: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #92400e;
+            flex-wrap: wrap;
+        }
+        .filter-status.visible {
+            display: flex;
+        }
+        .filter-status .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .filter-status .filter-tag.search {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .filter-status .filter-tag.column {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .filter-status .clear-btn {
+            padding: 6px 14px;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+        .filter-status .btn-group {
+            margin-left: auto;
+            display: flex;
+            gap: 4px;
+        }
+        .filter-status .clear-btn.search {
+            background-color: #fca5a5;
+            color: #991b1b;
+        }
+        .filter-status .clear-btn.search:hover {
+            background-color: #f87171;
+            color: white;
+        }
+        .filter-status .clear-btn.filter {
+            background-color: #f87171;
+        }
+        .filter-status .clear-btn.filter:hover {
+            background-color: #ef4444;
+        }
+        .filter-status .clear-btn.all {
+            background-color: #dc2626;
+        }
+        .filter-status .clear-btn.all:hover {
+            background-color: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>📦 商品查询系统</h1>
+            <div class="subtitle">扫码检测 | 键盘图标 | 数字排序 | <b style="color: #16a34a;">自动记忆文件</b></div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="triggerFileSelect()">📂 导入 Excel</button>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)">
+            <button class="btn" onclick="autoSizeAll()">↔️ 自动列宽</button>
+            <button class="btn btn-danger" onclick="clearSavedData()">🗑️ 清除记忆</button>
+        </div>
+    </header>
+
+    <div class="search-box">
+        <input type="text" id="searchInput" class="search-input" placeholder="扫码或输入名称/拼音..." autofocus>
+        <div id="statusBadge" class="status-badge">
+            <span id="iconSpan"></span>
+            <span id="statusText"></span>
+        </div>
+    </div>
+    
+    <!-- 筛选状态提示区 -->
+    <div id="filterStatus" class="filter-status">
+        <span>🔍 当前操作：</span>
+        <div id="filterTags"></div>
+        <span id="filterCount"></span>
+        <div class="btn-group">
+            <button class="clear-btn search" onclick="clearSearchOnly()">清除搜索</button>
+            <button class="clear-btn filter" onclick="clearFilterOnly()">清除筛选</button>
+            <button class="clear-btn all" onclick="clearAllFilters()">清除全部</button>
+        </div>
+    </div>
+
+    <div id="myGrid" class="grid-container ag-theme-alpine">
+        <div class="loading" id="loadingIndicator">正在加载...</div>
+    </div>
+
+    <div class="footer">
+        <span id="dataSource">当前数据：加载中...</span>
+        <span id="recordCount">共 0 条</span>
+    </div>
+    
+    <div class="info-box" id="infoBox">
+        💡 点击「📂 导入 Excel」按钮导入商品数据，系统将自动记住您选择的文件。
+    </div>
+</div>
+
+<script>
+// ==========================================
+// 全局状态
+// ==========================================
+let gridApi = null;
+let allData = [];
+let currentSearchText = ''; 
+let lastFilteredCount = 0; // 记录上次筛选结果数量
+
+// 存储键名
+const STORAGE_KEY = 'product_query_excel_data';
+
+// ==========================================
+// 存储函数 - 使用 localStorage
+// ==========================================
+function saveData(fileName, arrayBuffer, recordCount) {
+    try {
+        // 将 ArrayBuffer 转为 Base64 字符串
+        const base64 = arrayBufferToBase64(arrayBuffer);
+        
+        const data = {
+            fileName: fileName,
+            fileData: base64,
+            recordCount: recordCount,
+            savedAt: new Date().toISOString()
+        };
+        
+        // localStorage 有大小限制（约5MB），如果数据太大需要分片
+        const jsonStr = JSON.stringify(data);
+        
+        // 检查大小
+        if (jsonStr.length > 4 * 1024 * 1024) { // 4MB 警告阈值
+            console.warn('⚠️ 文件较大，可能超出存储限制');
+        }
+        
+        localStorage.setItem(STORAGE_KEY, jsonStr);
+        console.log('✅ 数据已保存到 localStorage:', fileName);
+        return true;
+    } catch (e) {
+        console.error('❌ 保存失败:', e);
+        
+        // 如果是配额超限错误
+        if (e.name === 'QuotaExceededError' || e.code === 22) {
+            showToast('⚠️ 文件太大，超出浏览器存储限制，无法记住此文件');
+        }
+        return false;
+    }
+}
+
+function loadData() {
+    try {
+        const jsonStr = localStorage.getItem(STORAGE_KEY);
+        if (!jsonStr) return null;
+        
+        const data = JSON.parse(jsonStr);
+        // Base64 转 ArrayBuffer
+        data.fileData = base64ToArrayBuffer(data.fileData);
+        console.log('✅ 从 localStorage 加载数据:', data.fileName);
+        return data;
+    } catch (e) {
+        console.error('❌ 加载失败:', e);
+        return null;
+    }
+}
+
+function clearData() {
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+        console.log('✅ 已清除保存的数据');
+        return true;
+    } catch (e) {
+        console.error('❌ 清除失败:', e);
+        return false;
+    }
+}
+
+// ArrayBuffer 转 Base64
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+// Base64 转 ArrayBuffer
+function base64ToArrayBuffer(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+// ==========================================
+// 智能高亮渲染器 - 用于文本格式列
+// ==========================================
+class SmartHighlightRenderer {
+    init(params) {
+        this.eGui = document.createElement('span');
+        this.refresh(params);
+    }
+
+    getGui() { return this.eGui; }
+
+    refresh(params) {
+        const text = String(params.value || '');
+        const search = currentSearchText.toLowerCase().trim();
+        
+        if (!search) {
+            this.eGui.innerHTML = this.escapeHtml(text);
+            return true;
+        }
+
+        const lowerText = text.toLowerCase();
+        const directIndex = lowerText.indexOf(search);
+        
+        if (directIndex !== -1) {
+            const before = text.substring(0, directIndex);
+            const match = text.substring(directIndex, directIndex + search.length);
+            const after = text.substring(directIndex + search.length);
+            this.eGui.innerHTML = `${this.escapeHtml(before)}<span class="highlight-text">${this.escapeHtml(match)}</span>${this.escapeHtml(after)}`;
+            return true;
+        }
+
+        // 拼音匹配
+        if (params.colDef.field === 'name' && params.data && params.data._pinyinFull) {
+            const pinyinFull = params.data._pinyinFull;
+            const pinyinIndex = pinyinFull.indexOf(search);
+            if (pinyinIndex !== -1) {
+                const start = pinyinIndex;
+                const end = start + search.length;
+                const before = text.substring(0, start);
+                const match = text.substring(start, end);
+                const after = text.substring(end);
+                this.eGui.innerHTML = `${this.escapeHtml(before)}<span class="highlight-text">${this.escapeHtml(match)}</span>${this.escapeHtml(after)}`;
+                return true;
+            }
+        }
+
+        this.eGui.innerHTML = this.escapeHtml(text);
+        return true;
+    }
+
+    escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, m => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+        }[m]));
+    }
+}
+
+// ==========================================
+// 数字格式渲染器 - 用于数字格式列（支持高亮）
+// ==========================================
+class NumericRenderer {
+    init(params) {
+        this.eGui = document.createElement('span');
+        this.refresh(params);
+    }
+
+    getGui() { return this.eGui; }
+
+    refresh(params) {
+        const value = params.value;
+        const search = currentSearchText.toLowerCase().trim();
+        
+        if (value === null || value === undefined || value === '') {
+            this.eGui.innerHTML = '';
+            return true;
+        }
+        
+        // 直接使用数字值，格式化为1位小数
+        let displayText;
+        if (typeof value === 'number') {
+            displayText = value.toFixed(1);
+        } else {
+            const num = parseFloat(value);
+            displayText = isNaN(num) ? String(value) : num.toFixed(1);
+        }
+        
+        if (!search) {
+            this.eGui.innerHTML = this.escapeHtml(displayText);
+            return true;
+        }
+        
+        // 高亮匹配
+        const lowerText = displayText.toLowerCase();
+        const index = lowerText.indexOf(search);
+        
+        if (index !== -1) {
+            const before = displayText.substring(0, index);
+            const match = displayText.substring(index, index + search.length);
+            const after = displayText.substring(index + search.length);
+            this.eGui.innerHTML = `${this.escapeHtml(before)}<span class="highlight-text">${this.escapeHtml(match)}</span>${this.escapeHtml(after)}`;
+        } else {
+            this.eGui.innerHTML = this.escapeHtml(displayText);
+        }
+        return true;
+    }
+
+    escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, m => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+        }[m]));
+    }
+}
+
+// ==========================================
+// Grid 配置
+// ==========================================
+const numericComparator = (valueA, valueB) => {
+    const valA = parseFloat(valueA) || 0;
+    const valB = parseFloat(valueB) || 0;
+    return valA - valB;
+};
+
+const columnDefs = [
+    { field: 'name', headerName: '商品名称', minWidth: 80, pinned: 'left', cellRenderer: SmartHighlightRenderer, tooltipField: 'name' },
+    { field: 'cost', headerName: '进价（条）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'priceStrip', headerName: '售价（条）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'suggestStrip', headerName: '建议价（条）', minWidth: 80, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'pricePack', headerName: '售价（包）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'suggestPack', headerName: '建议价（包）', minWidth: 80, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'barcodeStrip', headerName: '条码（条）', minWidth: 90, cellRenderer: SmartHighlightRenderer },
+    { field: 'barcodePack', headerName: '条码（包）', minWidth: 90, cellRenderer: SmartHighlightRenderer }
+];
+
+const gridOptions = {
+    columnDefs: columnDefs,
+    rowData: [],
+    defaultColDef: { resizable: true, sortable: true },
+    rowSelection: 'single',
+    suppressRowClickSelection: false,
+    onFilterChanged: function() {
+        updateFilterStatus();
+    },
+    localeText: {
+        noRowsToShow: '暂无数据',
+        // 菜单相关
+        pinColumn: '固定列',
+        pinLeft: '固定到左侧',
+        pinRight: '固定到右侧',
+        noPin: '不固定',
+        valueAggregation: '值聚合',
+        autosizeThiscolumn: '自动调整此列宽度',
+        autosizeAllColumns: '自动调整所有列宽度',
+        groupBy: '分组',
+        ungroupBy: '取消分组',
+        resetColumns: '重置列',
+        expandAll: '展开全部',
+        collapseAll: '折叠全部',
+        copy: '复制',
+        ctrlC: 'Ctrl+C',
+        copyWithHeaders: '复制(含表头)',
+        paste: '粘贴',
+        ctrlV: 'Ctrl+V',
+        export: '导出',
+        csvExport: '导出CSV',
+        excelExport: '导出Excel',
+        // 筛选相关
+        filterOoo: '筛选...',
+        equals: '等于',
+        notEqual: '不等于',
+        lessThan: '小于',
+        greaterThan: '大于',
+        lessThanOrEqual: '小于或等于',
+        greaterThanOrEqual: '大于或等于',
+        inRange: '范围内',
+        inRangeStart: '从',
+        inRangeEnd: '到',
+        contains: '包含',
+        notContains: '不包含',
+        startsWith: '开头为',
+        endsWith: '结尾为',
+        blank: '空白',
+        notBlank: '非空白',
+        andCondition: '并且',
+        orCondition: '或者',
+        applyFilter: '应用',
+        resetFilter: '重置',
+        clearFilter: '清除筛选',
+        // 排序相关
+        sortAscending: '升序排序',
+        sortDescending: '降序排序',
+        sortUnSort: '取消排序',
+        // 其他
+        loadingOoo: '加载中...',
+        selectAll: '全选',
+        selectAllSearchResults: '选择所有搜索结果',
+        searchOoo: '搜索...',
+        blanks: '空白',
+        noMatches: '无匹配项',
+        group: '分组',
+        ungroup: '取消分组',
+        columns: '列',
+        filters: '筛选',
+        pivotMode: '透视模式',
+        groups: '分组',
+        rowGroupColumnsEmptyMessage: '拖拽此处设置分组',
+        values: '值',
+        pivotColumns: '透视列',
+        pivotColumnsEmptyMessage: '拖拽此处设置透视'
+    }
+};
+
+// ==========================================
+// 数据处理函数
+// ==========================================
+function processPinyin(text) {
+    if (!text) return '';
+    if (typeof pinyinPro !== 'undefined') {
+        try {
+            return pinyinPro.pinyin(text, { pattern: 'first', toneType: 'none' }).replace(/\s/g, '').toLowerCase();
+        } catch (e) {
+            return '';
+        }
+    }
+    return '';
+}
+
+function parseExcelData(arrayBuffer) {
+    try {
+        const data = new Uint8Array(arrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        
+        return jsonData.map(row => {
+            const clean = {};
+            Object.keys(row).forEach(k => clean[k.trim()] = row[k]);
+            const get = keys => { for (let k of keys) if (clean[k]) return clean[k]; return ''; };
+            const getNum = keys => {
+                const val = get(keys);
+                if (val === '' || val === null || val === undefined) return null;
+                const num = parseFloat(val);
+                return isNaN(num) ? null : num;
+            };
+            
+            return {
+                name: get(['商品名称', '品名', '名称']),
+                cost: getNum(['进价（条）', '进价']),
+                priceStrip: getNum(['售价（条）', '条售价']),
+                suggestStrip: getNum(['建议价（条）']),
+                pricePack: getNum(['售价（包）', '包售价']),
+                suggestPack: getNum(['建议价（包）']),
+                barcodeStrip: get(['条码（条）', '条码', '商品条码', '条形码']),
+                barcodePack: get(['条码（包）'])
+            };
+        }).filter(item => item.name || item.barcodeStrip || item.barcodePack);
+    } catch (e) {
+        console.error('解析Excel失败:', e);
+        return [];
+    }
+}
+
+function processData(data, source) {
+    // 添加拼音
+    data.forEach(item => {
+        item._pinyinFull = processPinyin(item.name);
+        item.namePinyin = item._pinyinFull;
+    });
+    
+    allData = data;
+    
+    if (gridApi) {
+        gridApi.setGridOption('rowData', allData);
+        // 自动调整列宽
+        setTimeout(() => {
+            gridApi.autoSizeAllColumns();
+        }, 100);
+    }
+    
+    document.getElementById('dataSource').innerHTML = `数据：<span class="file-name">${source}</span>`;
+    document.getElementById('recordCount').textContent = `共 ${data.length} 条`;
+}
+
+// ==========================================
+// 文件上传处理
+// ==========================================
+function triggerFileSelect() {
+    document.getElementById('fileInput').click();
+}
+
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // 先清除搜索和筛选
+    input.value = '';
+    currentSearchText = '';
+    if (gridApi) {
+        gridApi.setFilterModel(null);
+    }
+    // 隐藏筛选状态提示区
+    document.getElementById('filterStatus').classList.remove('visible');
+    hideStatus();
+    
+    showToast('📖 正在读取文件...');
+    
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const arrayBuffer = e.target.result;
+            const formatted = parseExcelData(arrayBuffer);
+            
+            if (formatted.length === 0) {
+                showToast('❌ 文件为空或格式不正确');
+                return;
+            }
+            
+            // 显示数据
+            processData(formatted, file.name);
+            
+            // 保存到 localStorage
+            const saved = saveData(file.name, arrayBuffer, formatted.length);
+            
+            if (saved) {
+                updateInfoBox(true, file.name, formatted.length);
+                showToast(`✅ 已导入并记住「${file.name}」，共 ${formatted.length} 条`);
+            } else {
+                updateInfoBox(false);
+                showToast(`✅ 导入成功，但文件太大无法记住`);
+            }
+            
+        } catch (err) {
+            console.error('解析失败:', err);
+            showToast('❌ 解析失败: ' + err.message);
+        }
+    };
+    
+    reader.onerror = function() {
+        showToast('❌ 文件读取失败');
+    };
+    
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+}
+
+// ==========================================
+// 搜索与扫码逻辑
+// ==========================================
+const input = document.getElementById('searchInput');
+const badge = document.getElementById('statusBadge');
+const iconSpan = document.getElementById('iconSpan');
+const statusText = document.getElementById('statusText');
+
+let notFoundTimer = null; // 用于未找到时自动恢复的定时器
+let searchDebounceTimer = null; // 搜索防抖定时器
+
+function initScannerLogic() {
+    input.addEventListener('input', (e) => {
+        const val = e.target.value;
+
+        // 如果有新的输入，取消之前的未找到恢复定时器
+        if (notFoundTimer) {
+            clearTimeout(notFoundTimer);
+            notFoundTimer = null;
+        }
+
+        // 防抖：停止输入256ms后才执行搜索
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            filterData(val);
+            searchDebounceTimer = null;
+        }, 256);
+    });
+}
+
+function filterData(query) {
+    if (!gridApi) return;
+    currentSearchText = query;
+    
+    if (!query.trim()) {
+        gridApi.setGridOption('rowData', allData);
+        updateCount(allData.length);
+        lastFilteredCount = allData.length;
+        hideStatus();
+        updateFilterStatus();
+        return;
+    }
+    
+    const q = query.toLowerCase();
+    const filtered = allData.filter(item => {
+        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(q));
+        const hasPinyin = item.namePinyin && item.namePinyin.includes(q);
+        return hasText || hasPinyin;
+    });
+    
+    gridApi.setGridOption('rowData', filtered);
+    lastFilteredCount = filtered.length;
+    updateCount(filtered.length);
+    
+    // 实时显示找到的结果数量或未找到提示
+    if (filtered.length > 0) {
+        showFoundStatus(filtered.length);
+    } else {
+        showNotFoundStatus();
+    }
+    
+    updateFilterStatus();
+}
+
+function updateCount(n) { 
+    document.getElementById('recordCount').textContent = `当前: ${n} 条`; 
+}
+
+function clearSearch() {
+    // 取消定时器
+    if (notFoundTimer) {
+        clearTimeout(notFoundTimer);
+        notFoundTimer = null;
+    }
+    
+    input.value = '';
+    currentSearchText = ''; 
+    lastFilteredCount = allData.length;
+    if (gridApi) gridApi.setGridOption('rowData', allData);
+    updateCount(allData.length);
+    input.focus();
+    hideStatus();
+    updateFilterStatus();
+}
+
+function autoSizeAll() { 
+    if (gridApi) gridApi.autoSizeAllColumns(); 
+}
+
+function showFoundStatus(count) {
+    badge.classList.remove('notfound');
+    badge.classList.add('visible', 'found');
+    iconSpan.textContent = '✅';
+    statusText.textContent = `找到 ${count} 个`;
+}
+
+function showNotFoundStatus(query) {
+    badge.classList.remove('found');
+    badge.classList.add('visible', 'notfound');
+    iconSpan.textContent = '❌';
+    statusText.textContent = '未找到商品';
+}
+
+function hideStatus() {
+    badge.classList.remove('visible');
+}
+
+// ==========================================
+// 筛选状态显示
+// ==========================================
+// 列名映射（英文字段名 -> 中文显示名）
+const columnNameMap = {
+    'name': '商品名称',
+    'cost': '进价（条）',
+    'priceStrip': '售价（条）',
+    'suggestStrip': '建议价（条）',
+    'pricePack': '售价（包）',
+    'suggestPack': '建议价（包）',
+    'barcodeStrip': '条码（条）',
+    'barcodePack': '条码（包）'
+};
+
+// 筛选类型映射
+const filterTypeMap = {
+    'equals': '等于',
+    'notEqual': '不等于',
+    'lessThan': '小于',
+    'greaterThan': '大于',
+    'lessThanOrEqual': '小于等于',
+    'greaterThanOrEqual': '大于等于',
+    'inRange': '范围',
+    'contains': '包含',
+    'notContains': '不包含',
+    'startsWith': '开头为',
+    'endsWith': '结尾为',
+    'blank': '为空',
+    'notBlank': '不为空'
+};
+
+function updateFilterStatus() {
+    const filterStatus = document.getElementById('filterStatus');
+    const filterTags = document.getElementById('filterTags');
+    const filterCount = document.getElementById('filterCount');
+    
+    let tags = [];
+    
+    // 搜索框筛选
+    if (currentSearchText.trim()) {
+        tags.push(`<span class="filter-tag search">📝 搜索"${escapeHtml(currentSearchText.trim())}"</span>`);
+    }
+    
+    // AG Grid 列筛选
+    if (gridApi) {
+        const filterModel = gridApi.getFilterModel();
+        for (const field in filterModel) {
+            const filter = filterModel[field];
+            const colName = columnNameMap[field] || field;
+            
+            // 检查是否有多个条件
+            if (filter.conditions && filter.conditions.length > 0) {
+                // 多个条件
+                const operator = filter.operator === 'AND' ? ' 且 ' : ' 或 ';
+                const conditionTexts = filter.conditions.map(cond => {
+                    const filterType = filterTypeMap[cond.type] || cond.type;
+                    let filterValue = '';
+                    if (cond.type === 'inRange') {
+                        filterValue = `${cond.filter} ~ ${cond.filterTo}`;
+                    } else if (cond.filter !== undefined) {
+                        filterValue = cond.filter;
+                    }
+                    return `${filterType} ${filterValue}`;
+                });
+                tags.push(`<span class="filter-tag column">🔍 ${colName} ${conditionTexts.join(operator)}</span>`);
+            } else {
+                // 单个条件
+                const filterType = filterTypeMap[filter.type] || filter.type;
+                let filterValue = '';
+                
+                if (filter.type === 'inRange') {
+                    filterValue = `${filter.filter} ~ ${filter.filterTo}`;
+                } else if (filter.filter !== undefined) {
+                    filterValue = filter.filter;
+                }
+                
+                tags.push(`<span class="filter-tag column">🔍 ${colName} ${filterType} ${filterValue}</span>`);
+            }
+        }
+    }
+    
+    // 显示或隐藏状态区
+    if (tags.length > 0) {
+        filterStatus.classList.add('visible');
+        filterTags.innerHTML = tags.join('');
+        
+        // 获取当前显示的记录数
+        let displayedCount = 0;
+        if (gridApi) {
+            displayedCount = gridApi.getDisplayedRowCount();
+        }
+        filterCount.textContent = `共 ${displayedCount} 条结果`;
+    } else {
+        filterStatus.classList.remove('visible');
+    }
+}
+
+function clearAllFilters() {
+    // 清除搜索框
+    input.value = '';
+    currentSearchText = '';
+    
+    // 清除 AG Grid 筛选
+    if (gridApi) {
+        gridApi.setFilterModel(null);
+        gridApi.setGridOption('rowData', allData);
+    }
+    
+    // 更新显示
+    updateCount(allData.length);
+    lastFilteredCount = allData.length;
+    hideStatus();
+    updateFilterStatus();
+    input.focus();
+    
+    showToast('✅ 已清除所有筛选条件');
+}
+
+function clearSearchOnly() {
+    // 只清除搜索框
+    input.value = '';
+    currentSearchText = '';
+    
+    // 恢复到全部数据，但保留列筛选
+    if (gridApi) {
+        gridApi.setGridOption('rowData', allData);
+    }
+    
+    // 更新显示
+    updateCount(allData.length);
+    lastFilteredCount = allData.length;
+    hideStatus();
+    updateFilterStatus();
+    input.focus();
+    
+    showToast('✅ 已清除搜索条件');
+}
+
+function clearFilterOnly() {
+    // 只清除 AG Grid 列筛选
+    if (gridApi) {
+        gridApi.setFilterModel(null);
+    }
+    
+    // 如果搜索框有内容，重新应用搜索
+    if (currentSearchText.trim()) {
+        filterData(currentSearchText);
+    } else {
+        gridApi.setGridOption('rowData', allData);
+        updateCount(allData.length);
+        lastFilteredCount = allData.length;
+    }
+    
+    updateFilterStatus();
+    
+    showToast('✅ 已清除列筛选条件');
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[m]));
+}
+
+// ==========================================
+// 提示与Toast
+// ==========================================
+function updateInfoBox(hasFile, fileName, recordCount) {
+    const infoBox = document.getElementById('infoBox');
+    
+    if (hasFile && fileName) {
+        infoBox.className = 'info-box success';
+        infoBox.innerHTML = `✅ 已自动加载文件：<b>${fileName}</b>（共 ${recordCount} 条）<br>💡 刷新页面会自动加载此文件，点击「导入 Excel」可更换文件。`;
+    } else {
+        infoBox.className = 'info-box';
+        infoBox.innerHTML = `💡 点击「📂 导入 Excel」按钮导入商品数据，系统将自动记住您选择的文件。<br>📋 支持格式：.xlsx, .xls, .csv（文件大小限约4MB）`;
+    }
+}
+
+function showToast(msg) {
+    let t = document.getElementById('toast');
+    if(!t) {
+        t = document.createElement('div');
+        t.id = 'toast';
+        t.style.cssText = `position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:14px 28px; border-radius:8px; z-index:9999; opacity:0; transition:opacity 0.3s; font-size:18px; max-width: 90%; text-align: center;`;
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = 1;
+    setTimeout(() => t.style.opacity = 0, 3000);
+}
+
+// ==========================================
+// 清除保存的数据
+// ==========================================
+function clearSavedData() {
+    if (!confirm('确定要清除已保存的Excel数据吗？\n清除后需要重新导入文件。')) {
+        return;
+    }
+    
+    // 清除 localStorage 保存的数据
+    clearData();
+    
+    // 清除搜索框
+    input.value = '';
+    currentSearchText = '';
+    
+    // 清除 AG Grid 筛选
+    if (gridApi) {
+        gridApi.setFilterModel(null);
+    }
+    
+    // 清空表格数据
+    allData = [];
+    if (gridApi) {
+        gridApi.setGridOption('rowData', []);
+    }
+    
+    // 更新显示
+    document.getElementById('dataSource').innerHTML = `数据：<span class="file-name">未导入文件</span>`;
+    document.getElementById('recordCount').textContent = `共 0 条`;
+    
+    // 隐藏筛选状态区和搜索状态
+    document.getElementById('filterStatus').classList.remove('visible');
+    hideStatus();
+    
+    updateInfoBox(false);
+    input.focus();
+    
+    showToast('✅ 已清除保存的数据');
+}
+
+// ==========================================
+// 清空表格数据
+// ==========================================
+function loadDemoData() {
+    allData = [];
+    if (gridApi) {
+        gridApi.setGridOption('rowData', []);
+    }
+    document.getElementById('dataSource').innerHTML = `数据：<span class="file-name">未导入文件</span>`;
+    document.getElementById('recordCount').textContent = `共 0 条`;
+}
+
+// ==========================================
+// 页面初始化
+// ==========================================
+function initApp() {
+    console.log('🚀 开始初始化应用...');
+    
+    // 初始化 Grid
+    const gridDiv = document.querySelector('#myGrid');
+    document.getElementById('loadingIndicator').remove();
+    gridApi = agGrid.createGrid(gridDiv, gridOptions);
+    
+    // 初始化扫码逻辑
+    initScannerLogic();
+    
+    // 尝试加载已保存的数据
+    const savedData = loadData();
+    
+    if (savedData && savedData.fileData) {
+        const formatted = parseExcelData(savedData.fileData);
+        
+        if (formatted.length > 0) {
+            processData(formatted, savedData.fileName);
+            updateInfoBox(true, savedData.fileName, formatted.length);
+            showToast(`✅ 自动加载「${savedData.fileName}」，共 ${formatted.length} 条`);
+        } else {
+            loadDemoData();
+            updateInfoBox(false);
+        }
+    } else {
+        // 没有保存的数据，加载演示数据
+        loadDemoData();
+        updateInfoBox(false);
+    }
+    
+    console.log('✅ 应用初始化完成');
+}
+
+// DOM 加载完成后初始化
+document.addEventListener('DOMContentLoaded', initApp);
+
+// ==========================================
+// Service Worker 注册
+// ==========================================
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker 注册成功:', registration.scope);
+            })
+            .catch(err => {
+                console.error('❌ Service Worker 注册失败:', err);
+            });
+    });
+}
+</script>
+</body>
+</html>
