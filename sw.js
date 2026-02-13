@@ -11,11 +11,11 @@ const CACHE_FILES = [
 
 // CDN 文件列表（单独缓存）
 const CDN_FILES = [
-    'https://registry.npmmirror.com/ag-grid-community/31.0.3/files/styles/ag-grid.min.css',
-    'https://registry.npmmirror.com/ag-grid-community/31.0.3/files/styles/ag-theme-alpine.min.css',
-    'https://registry.npmmirror.com/ag-grid-community/31.0.3/files/dist/ag-grid-community.min.js',
-    'https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-    'https://unpkg.com/pinyin-pro@3.18.2/dist/index.js'
+    './ag-grid-community-31.0.3/package/styles/ag-grid.min.css',
+    './ag-grid-community-31.0.3/package/styles/ag-theme-alpine.min.css',
+    './ag-grid-community-31.0.3/package/dist/ag-grid-community.min.js',
+    './xlsx.full.min.js',
+    './pinyin-pro.min.js'
 ];
 
 // 安装事件 - 缓存文件
