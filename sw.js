@@ -1,5 +1,5 @@
 // Service Worker - 商品查询系统
-const CACHE_NAME = 'product-query-v1';
+const CACHE_NAME = 'product-query-v3';
 
 // 需要缓存的文件列表
 const CACHE_FILES = [
@@ -11,11 +11,11 @@ const CACHE_FILES = [
 
 // CDN 文件列表（单独缓存）
 const CDN_FILES = [
-    'https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-grid.min.css',
-    'https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/styles/ag-theme-alpine.min.css',
-    'https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.3/dist/ag-grid-community.min.js',
-    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-    'https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js'
+    'https://registry.npmmirror.com/ag-grid-community/31.0.3/files/styles/ag-grid.min.css',
+    'https://registry.npmmirror.com/ag-grid-community/31.0.3/files/styles/ag-theme-alpine.min.css',
+    'https://registry.npmmirror.com/ag-grid-community/31.0.3/files/dist/ag-grid-community.min.js',
+    'https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://unpkg.com/pinyin-pro@3.18.2/dist/index.js'
 ];
 
 // 安装事件 - 缓存文件
