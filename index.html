@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="商品查询">
     <link rel="apple-touch-icon" href="icon-192.png">
-
+    
     <!-- AG Grid 核心样式 (CDN) -->
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/ag-grid/31.0.3/styles/ag-grid.min.css">
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/ag-grid/31.0.3/styles/ag-theme-alpine.min.css">
@@ -22,7 +22,6 @@
     <script src="https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- 拼音库 (CDN) -->
     <script src="https://unpkg.com/pinyin-pro@3.18.2/dist/index.js"></script>
-    
     
     <style>
         :root { --primary-color: #2563eb; --bg-color: #f1f5f9; }
@@ -624,6 +623,16 @@ function triggerFileSelect() {
 function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
+    
+    // 先清除搜索和筛选
+    input.value = '';
+    currentSearchText = '';
+    if (gridApi) {
+        gridApi.setFilterModel(null);
+    }
+    // 隐藏筛选状态提示区
+    document.getElementById('filterStatus').classList.remove('visible');
+    hideStatus();
     
     showToast('📖 正在读取文件...');
     
