@@ -588,8 +588,8 @@ function parseExcelData(arrayBuffer) {
                 suggestStrip: getNum(['建议价（条）']),
                 pricePack: getNum(['售价（包）', '包售价']),
                 suggestPack: getNum(['建议价（包）']),
-                barcodeStrip: get(['条码（条）', '条码', '商品条码', '条形码']),
-                barcodePack: get(['条码（包）'])
+                barcodeStrip: get(['条码', '条码', '商品条码', '条形码']),
+                barcodePack: get(['包码'])
             };
         }).filter(item => item.name || item.barcodeStrip || item.barcodePack);
     } catch (e) {
@@ -808,8 +808,8 @@ const columnNameMap = {
     'suggestStrip': '建议价（条）',
     'pricePack': '售价（包）',
     'suggestPack': '建议价（包）',
-    'barcodeStrip': '条码（条）',
-    'barcodePack': '条码（包）'
+    'barcodeStrip': '条码',
+    'barcodePack': '包码'
 };
 
 // 筛选类型映射
