@@ -151,16 +151,11 @@
             background-color: #fff;
             border-radius: 4px;
             font-size: 0.9rem;
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-        /* 最后一个标签可收缩，超出时显示省略号 */
-        .filter-status .filter-tag:last-child {
             flex-shrink: 1;
-            min-width: 80px;
-            max-width: 400px;
+            min-width: 60px;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .filter-status .filter-tag.search {
             background-color: #dbeafe;
@@ -920,7 +915,14 @@ function clearAllFilters() {
     
     // 清除 AG Grid 筛选
     if (gridApi) {
-        gridApi.setFilterModel(null);
+        // 先清除筛选模型
+        const filterModel = gridApi.getFilterModel();
+        if (Object.keys(filterModel).length > 0) {
+            // 逐个清除每列的筛选器
+            Object.keys(filterModel).forEach(field => {
+                gridApi.destroyFilter(field);
+            });
+        }
         gridApi.setGridOption('rowData', allData);
     }
     
@@ -957,7 +959,12 @@ function clearSearchOnly() {
 function clearFilterOnly() {
     // 只清除 AG Grid 列筛选
     if (gridApi) {
-        gridApi.setFilterModel(null);
+        const filterModel = gridApi.getFilterModel();
+        if (Object.keys(filterModel).length > 0) {
+            Object.keys(filterModel).forEach(field => {
+                gridApi.destroyFilter(field);
+            });
+        }
     }
     
     // 如果搜索框有内容，重新应用搜索
