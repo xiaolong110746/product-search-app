@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>商品查询系统 - 自动记忆版</title>
+    <title>商品查询</title>
     
     <!-- PWA 配置 -->
     <link rel="manifest" href="manifest.json">
@@ -464,8 +464,8 @@ const columnDefs = [
     { field: 'suggestStrip', headerName: '建议价（条）', minWidth: 80, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
     { field: 'pricePack', headerName: '售价（包）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
     { field: 'suggestPack', headerName: '建议价（包）', minWidth: 80, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
-    { field: 'barcodeStrip', headerName: '条码（条）', minWidth: 90, cellRenderer: SmartHighlightRenderer },
-    { field: 'barcodePack', headerName: '条码（包）', minWidth: 90, cellRenderer: SmartHighlightRenderer }
+    { field: 'barcodeStrip', headerName: '条码', minWidth: 90, cellRenderer: SmartHighlightRenderer },
+    { field: 'barcodePack', headerName: '包码', minWidth: 90, cellRenderer: SmartHighlightRenderer }
 ];
 
 const gridOptions = {
