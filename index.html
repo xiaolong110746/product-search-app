@@ -140,7 +140,7 @@
             flex: 1;
             min-width: 0;
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             gap: 6px;
             align-items: center;
             overflow: hidden;
@@ -151,10 +151,16 @@
             background-color: #fff;
             border-radius: 4px;
             font-size: 0.9rem;
-            max-width: 200px;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        /* 最后一个标签可收缩，超出时显示省略号 */
+        .filter-status .filter-tag:last-child {
+            flex-shrink: 1;
+            min-width: 80px;
+            max-width: 400px;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
         }
         .filter-status .filter-tag.search {
             background-color: #dbeafe;
