@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>商品查询</title>
+    <title>商品查询系统 - 自动记忆版</title>
     
     <!-- PWA 配置 -->
     <link rel="manifest" href="manifest.json">
@@ -194,7 +194,7 @@
 <div class="container">
     <header>
         <div>
-            <h1>📦 商品查询</h1>
+            <h1>📦 商品查询系统</h1>
             <div class="subtitle">扫码检测 | 键盘图标 | 数字排序 | <b style="color: #16a34a;">自动记忆文件</b></div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
@@ -217,7 +217,6 @@
     <div id="filterStatus" class="filter-status">
         <span>🔍 当前操作：</span>
         <div id="filterTags"></div>
-        <span id="filterCount"></span>
         <div class="btn-group">
             <button class="clear-btn search" onclick="clearSearchOnly()">清除搜索</button>
             <button class="clear-btn filter" onclick="clearFilterOnly()">清除筛选</button>
@@ -889,7 +888,6 @@ function updateFilterStatus() {
     if (tags.length > 0) {
         filterStatus.classList.add('visible');
         filterTags.innerHTML = tags.join('');
-        filterCount.textContent = `共 ${displayedCount} 条结果`;
     } else {
         filterStatus.classList.remove('visible');
     }
