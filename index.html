@@ -195,7 +195,7 @@
     <header>
         <div>
             <h1>📦 商品查询</h1>
-            <div class="subtitle">扫码检测 | 键盘图标 | 数字排序 </div>
+            <div class="subtitle">扫码检测 | 键盘图标 | 数字排序 | <b style="color: #16a34a;">自动记忆文件</b></div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-primary" onclick="triggerFileSelect()">📂 导入 Excel</button>
@@ -588,8 +588,8 @@ function parseExcelData(arrayBuffer) {
                 suggestStrip: getNum(['建议价（条）']),
                 pricePack: getNum(['售价（包）', '包售价']),
                 suggestPack: getNum(['建议价（包）']),
-                barcodeStrip: get(['条码', '条码', '商品条码', '条形码']),
-                barcodePack: get(['包码'])
+                barcodeStrip: get(['条码（条）', '条码', '商品条码', '条形码', '条码(条)']),
+                barcodePack: get(['条码（包）', '包码', '条码(包)', '包条码', '包的条码'])
             };
         }).filter(item => item.name || item.barcodeStrip || item.barcodePack);
     } catch (e) {
