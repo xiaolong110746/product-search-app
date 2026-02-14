@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>商品查询</title>
+    <title>商品查询系统 - 自动记忆版</title>
     
     <!-- PWA 配置 -->
     <link rel="manifest" href="manifest.json">
@@ -28,8 +28,8 @@
         :root { --primary-color: #2563eb; --bg-color: #f1f5f9; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; width: 100%; overflow: hidden; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; padding: env(safe-area-inset-top, 12px) env(safe-area-inset-right, 12px) env(safe-area-inset-bottom, 12px) env(safe-area-inset-left, 12px); }
-        .container { flex: 1; display: flex; flex-direction: column; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 16px; min-height: 0; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); display: flex; flex-direction: column; padding: 8px; }
+        .container { flex: 1; display: flex; flex-direction: column; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 12px; min-height: 0; overflow: hidden; width: 100%; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; flex-shrink: 0; }
         h1 { margin: 0; font-size: 1.5rem; color: #0f172a; }
         .subtitle { font-size: 0.9rem; color: #64748b; margin-top: 2px; }
@@ -77,7 +77,7 @@
             box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
         }
         
-        .grid-container { flex: 1; min-height: 200px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .grid-container { flex: 1; min-height: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; width: 100%; }
         
         /* AG Grid 表格字体放大 */
         .ag-theme-alpine { font-size: 16px; }
@@ -609,9 +609,9 @@ function processData(data, source) {
     
     if (gridApi) {
         gridApi.setGridOption('rowData', allData);
-        // 自动调整列宽
+        // 自动调整列宽适应容器
         setTimeout(() => {
-            gridApi.autoSizeAllColumns();
+            gridApi.sizeColumnsToFit();
         }, 100);
     }
     
@@ -776,7 +776,7 @@ function clearSearch() {
 }
 
 function autoSizeAll() { 
-    if (gridApi) gridApi.autoSizeAllColumns(); 
+    if (gridApi) gridApi.sizeColumnsToFit(); 
 }
 
 function showFoundStatus(count) {
@@ -1084,6 +1084,17 @@ function initApp() {
 
 // DOM 加载完成后初始化
 document.addEventListener('DOMContentLoaded', initApp);
+
+// 窗口大小变化时刷新 AG Grid 布局
+window.addEventListener('resize', function() {
+    if (gridApi) {
+        // 使用防抖避免频繁刷新
+        clearTimeout(window.resizeTimer);
+        window.resizeTimer = setTimeout(function() {
+            gridApi.sizeColumnsToFit();
+        }, 100);
+    }
+});
 
 // ==========================================
 // Service Worker 注册
