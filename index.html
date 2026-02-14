@@ -472,6 +472,8 @@ const gridOptions = {
     suppressRowClickSelection: false,
     onFilterChanged: function() {
         updateFilterStatus();
+        // 同步更新页脚的记录数
+        updateFooterCount();
     },
     localeText: {
         noRowsToShow: '暂无数据',
@@ -744,6 +746,14 @@ function updateCount(n) {
     document.getElementById('recordCount').textContent = `当前: ${n} 条`; 
 }
 
+// 更新页脚记录数（根据当前表格显示的行数）
+function updateFooterCount() {
+    if (gridApi) {
+        const displayedCount = gridApi.getDisplayedRowCount();
+        document.getElementById('recordCount').textContent = `当前: ${displayedCount} 条`;
+    }
+}
+
 function clearSearch() {
     // 取消定时器
     if (notFoundTimer) {
@@ -865,20 +875,23 @@ function updateFilterStatus() {
         }
     }
     
+    // 获取当前显示的记录数
+    let displayedCount = 0;
+    if (gridApi) {
+        displayedCount = gridApi.getDisplayedRowCount();
+    }
+    
     // 显示或隐藏状态区
     if (tags.length > 0) {
         filterStatus.classList.add('visible');
         filterTags.innerHTML = tags.join('');
-        
-        // 获取当前显示的记录数
-        let displayedCount = 0;
-        if (gridApi) {
-            displayedCount = gridApi.getDisplayedRowCount();
-        }
         filterCount.textContent = `共 ${displayedCount} 条结果`;
     } else {
         filterStatus.classList.remove('visible');
     }
+    
+    // 同步更新页脚的记录数
+    updateFooterCount();
 }
 
 function clearAllFilters() {
