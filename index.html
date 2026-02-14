@@ -136,6 +136,14 @@
         .filter-status.visible {
             display: flex;
         }
+        .filter-status .filter-tags-container {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
         .filter-status .filter-tag {
             display: inline-flex;
             align-items: center;
@@ -144,6 +152,10 @@
             background-color: #fff;
             border-radius: 4px;
             font-size: 0.9rem;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .filter-status .filter-tag.search {
             background-color: #dbeafe;
@@ -216,7 +228,7 @@
     <!-- 筛选状态提示区 -->
     <div id="filterStatus" class="filter-status">
         <span>🔍 当前操作：</span>
-        <div id="filterTags"></div>
+        <div id="filterTags" class="filter-tags-container"></div>
         <div class="btn-group">
             <button class="clear-btn search" onclick="clearSearchOnly()">清除搜索</button>
             <button class="clear-btn filter" onclick="clearFilterOnly()">清除筛选</button>
@@ -608,9 +620,9 @@ function processData(data, source) {
     
     if (gridApi) {
         gridApi.setGridOption('rowData', allData);
-        // 自动调整列宽适应容器
+        // 自动调整列宽适应内容
         setTimeout(() => {
-            gridApi.sizeColumnsToFit();
+            gridApi.autoSizeAllColumns();
         }, 100);
     }
     
@@ -775,7 +787,7 @@ function clearSearch() {
 }
 
 function autoSizeAll() { 
-    if (gridApi) gridApi.sizeColumnsToFit(); 
+    if (gridApi) gridApi.autoSizeAllColumns(); 
 }
 
 function showFoundStatus(count) {
@@ -1089,7 +1101,7 @@ window.addEventListener('resize', function() {
         // 使用防抖避免频繁刷新
         clearTimeout(window.resizeTimer);
         window.resizeTimer = setTimeout(function() {
-            gridApi.sizeColumnsToFit();
+            gridApi.autoSizeAllColumns();
         }, 100);
     }
 });
