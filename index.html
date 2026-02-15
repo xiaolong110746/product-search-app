@@ -120,10 +120,10 @@
         
         /* 筛选状态提示区 */
         .filter-status {
-            display: none;
+            display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 12px;
+            padding: 0 12px;
             margin-bottom: 10px;
             background-color: #fef3c7;
             border: 1px solid #fcd34d;
@@ -133,9 +133,17 @@
             flex-wrap: wrap;
             flex-shrink: 0;
             min-height: 44px;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, border-width 0.3s ease, margin-bottom 0.3s ease;
+            border-width: 0;
         }
         .filter-status.visible {
-            display: flex;
+            max-height: 60px;
+            opacity: 1;
+            padding: 8px 12px;
+            border-width: 1px;
         }
         .filter-status .filter-tags-container {
             flex: 1;
@@ -306,6 +314,49 @@
         .filter-status .clear-btn.all:hover {
             background-color: #b91c1c;
         }
+        
+        /* 自定义右键菜单 */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 4px 0;
+            min-width: 160px;
+            z-index: 10000;
+            display: none;
+        }
+        .context-menu.visible {
+            display: block;
+        }
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .context-menu-item:hover {
+            background-color: #f1f5f9;
+        }
+        .context-menu-item.disabled {
+            color: #a0a0a0;
+            cursor: not-allowed;
+        }
+        .context-menu-item.disabled:hover {
+            background-color: transparent;
+        }
+        .context-menu-divider {
+            height: 1px;
+            background-color: #e2e8f0;
+            margin: 4px 0;
+        }
+        .context-menu-item .icon {
+            width: 16px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -354,6 +405,31 @@
     
     <div class="info-box" id="infoBox">
         💡 点击「📂 导入 Excel」按钮导入商品数据，系统将自动记住您选择的文件。
+    </div>
+</div>
+
+<!-- 自定义右键菜单 -->
+<div id="contextMenu" class="context-menu">
+    <div class="context-menu-item" id="menuCopy">
+        <span class="icon">📋</span>
+        <span>复制</span>
+    </div>
+    <div class="context-menu-item disabled">
+        <span class="icon">✂️</span>
+        <span>剪切</span>
+    </div>
+    <div class="context-menu-item disabled">
+        <span class="icon">📄</span>
+        <span>粘贴</span>
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item disabled">
+        <span class="icon">📤</span>
+        <span>导出CSV</span>
+    </div>
+    <div class="context-menu-item disabled">
+        <span class="icon">📊</span>
+        <span>导出Excel</span>
     </div>
 </div>
 
@@ -1172,6 +1248,76 @@ function escapeHtml(s) {
 }
 
 // ==========================================
+// 自定义右键菜单
+// ==========================================
+let contextMenuTargetCell = null;
+
+function initContextMenu() {
+    const contextMenu = document.getElementById('contextMenu');
+    const menuCopy = document.getElementById('menuCopy');
+    
+    // 监听表格区域的右键事件
+    document.getElementById('myGrid').addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        
+        // 找到最近的单元格
+        const cell = e.target.closest('.ag-cell');
+        if (cell) {
+            contextMenuTargetCell = cell;
+            
+            // 定位菜单
+            let x = e.clientX;
+            let y = e.clientY;
+            
+            // 确保菜单不超出屏幕
+            contextMenu.classList.add('visible');
+            const menuWidth = contextMenu.offsetWidth;
+            const menuHeight = contextMenu.offsetHeight;
+            
+            if (x + menuWidth > window.innerWidth) {
+                x = window.innerWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > window.innerHeight) {
+                y = window.innerHeight - menuHeight - 10;
+            }
+            
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+        }
+    });
+    
+    // 复制功能
+    menuCopy.addEventListener('click', function() {
+        if (contextMenuTargetCell) {
+            const text = contextMenuTargetCell.textContent || '';
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('✅ 已复制到剪贴板');
+            }).catch(() => {
+                // 降级方案
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('✅ 已复制到剪贴板');
+            });
+        }
+        hideContextMenu();
+    });
+    
+    // 点击其他地方隐藏菜单
+    document.addEventListener('click', hideContextMenu);
+    
+    // 滚动时隐藏菜单
+    document.addEventListener('scroll', hideContextMenu, true);
+}
+
+function hideContextMenu() {
+    document.getElementById('contextMenu').classList.remove('visible');
+}
+
+// ==========================================
 // 提示与Toast
 // ==========================================
 function updateInfoBox(hasFile, fileName, recordCount) {
@@ -1264,6 +1410,9 @@ function initApp() {
     
     // 初始化扫码逻辑
     initScannerLogic();
+    
+    // 初始化右键菜单
+    initContextMenu();
     
     // 尝试加载已保存的数据
     const savedData = loadData();
