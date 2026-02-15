@@ -1139,8 +1139,8 @@ function handleTagClick(tagId) {
     // 动画结束后执行删除操作（动画时长 0.35s）
     setTimeout(() => {
         if (tagInfo.type === 'search') {
-            // 删除搜索标签
-            clearSearchOnly(true);
+            // 删除搜索标签，不重复播放动画
+            clearSearchOnly(true, false);
             showToast('✅ 已删除搜索条件');
         } else if (tagInfo.type === 'column') {
             // 删除列筛选标签
@@ -1168,35 +1168,86 @@ function clearColumnFilter(field) {
     showToast('✅ 已删除此筛选条件');
 }
 
-function clearAllFilters() {
-    // 清除搜索框
-    input.value = '';
-    currentSearchText = '';
-    
-    // 清除 AG Grid 筛选
-    if (gridApi) {
-        // 先清除筛选模型
-        const filterModel = gridApi.getFilterModel();
-        if (Object.keys(filterModel).length > 0) {
-            // 逐个清除每列的筛选器
-            Object.keys(filterModel).forEach(field => {
-                gridApi.destroyFilter(field);
-            });
-        }
-        gridApi.setGridOption('rowData', allData);
-    }
-    
-    // 更新显示
-    updateCount(allData.length);
-    lastFilteredCount = allData.length;
-    hideStatus();
-    updateFilterStatus();
-    input.focus();
-    
-    showToast('✅ 已清除所有筛选条件');
+// 给标签添加删除动画，返回 Promise
+function animateTagRemove(tagElement) {
+    return new Promise(resolve => {
+        tagElement.classList.add('removing');
+        setTimeout(resolve, 350);
+    });
 }
 
-function clearSearchOnly(skipToast = false) {
+// 清除所有筛选标签的动画
+async function animateAllTagsRemove(tagIds) {
+    // 并行执行所有标签的删除动画
+    const promises = tagIds.map(id => {
+        const el = document.getElementById(id);
+        if (el) return animateTagRemove(el);
+        return Promise.resolve();
+    });
+    await Promise.all(promises);
+}
+
+function clearAllFilters() {
+    // 获取所有标签ID
+    const tagIds = currentFilterTags.map(t => t.id);
+    
+    if (tagIds.length === 0) {
+        // 没有标签，直接执行
+        input.value = '';
+        currentSearchText = '';
+        if (gridApi) {
+            gridApi.setGridOption('rowData', allData);
+        }
+        updateCount(allData.length);
+        lastFilteredCount = allData.length;
+        hideStatus();
+        input.focus();
+        return;
+    }
+    
+    // 先播放动画
+    animateAllTagsRemove(tagIds).then(() => {
+        // 动画完成后清除搜索框
+        input.value = '';
+        currentSearchText = '';
+        
+        // 清除 AG Grid 筛选
+        if (gridApi) {
+            const filterModel = gridApi.getFilterModel();
+            if (Object.keys(filterModel).length > 0) {
+                Object.keys(filterModel).forEach(field => {
+                    gridApi.destroyFilter(field);
+                });
+            }
+            gridApi.setGridOption('rowData', allData);
+        }
+        
+        // 更新显示
+        updateCount(allData.length);
+        lastFilteredCount = allData.length;
+        hideStatus();
+        updateFilterStatus();
+        input.focus();
+        
+        showToast('✅ 已清除所有筛选条件');
+    });
+}
+
+function clearSearchOnly(skipToast = false, withAnimation = true) {
+    const searchTagId = 'tag-search';
+    const searchTag = document.getElementById(searchTagId);
+    
+    // 如果需要动画且有搜索标签
+    if (withAnimation && searchTag && currentSearchText.trim()) {
+        animateTagRemove(searchTag).then(() => {
+            executeClearSearch(skipToast);
+        });
+    } else {
+        executeClearSearch(skipToast);
+    }
+}
+
+function executeClearSearch(skipToast) {
     // 只清除搜索框
     input.value = '';
     currentSearchText = '';
@@ -1219,28 +1270,41 @@ function clearSearchOnly(skipToast = false) {
 }
 
 function clearFilterOnly() {
-    // 只清除 AG Grid 列筛选
-    if (gridApi) {
-        const filterModel = gridApi.getFilterModel();
-        if (Object.keys(filterModel).length > 0) {
-            Object.keys(filterModel).forEach(field => {
-                gridApi.destroyFilter(field);
-            });
+    // 获取所有列筛选标签ID
+    const columnTagIds = currentFilterTags
+        .filter(t => t.type === 'column')
+        .map(t => t.id);
+    
+    if (columnTagIds.length === 0) {
+        // 没有列筛选标签
+        showToast('✅ 当前没有列筛选条件');
+        return;
+    }
+    
+    // 先播放动画
+    animateAllTagsRemove(columnTagIds).then(() => {
+        // 清除 AG Grid 列筛选
+        if (gridApi) {
+            const filterModel = gridApi.getFilterModel();
+            if (Object.keys(filterModel).length > 0) {
+                Object.keys(filterModel).forEach(field => {
+                    gridApi.destroyFilter(field);
+                });
+            }
         }
-    }
-    
-    // 如果搜索框有内容，重新应用搜索
-    if (currentSearchText.trim()) {
-        filterData(currentSearchText);
-    } else {
-        gridApi.setGridOption('rowData', allData);
-        updateCount(allData.length);
-        lastFilteredCount = allData.length;
-    }
-    
-    updateFilterStatus();
-    
-    showToast('✅ 已清除列筛选条件');
+        
+        // 如果搜索框有内容，重新应用搜索
+        if (currentSearchText.trim()) {
+            filterData(currentSearchText);
+        } else {
+            gridApi.setGridOption('rowData', allData);
+            updateCount(allData.length);
+            lastFilteredCount = allData.length;
+        }
+        
+        updateFilterStatus();
+        showToast('✅ 已清除列筛选条件');
+    });
 }
 
 function escapeHtml(s) {
