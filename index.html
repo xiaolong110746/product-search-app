@@ -145,26 +145,130 @@
             align-items: center;
             overflow: hidden;
         }
+        
+        /* 筛选标签样式 - 增强交互 */
         .filter-status .filter-tag {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             padding: 4px 10px;
             background-color: #fff;
             border-radius: 4px;
             font-size: 0.9rem;
             flex-shrink: 1;
             min-width: 60px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
         }
+        
         .filter-status .filter-tag.search {
             background-color: #dbeafe;
             color: #1e40af;
         }
+        
         .filter-status .filter-tag.column {
             background-color: #dcfce7;
             color: #166534;
         }
+        
+        /* 悬停效果 */
+        .filter-status .filter-tag:hover {
+            background-color: #fecaca;
+            color: #991b1b;
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* 删除动画 - 缩小消失 */
+        .filter-status .filter-tag.removing {
+            animation: tagRemove 0.3s ease-out forwards;
+        }
+        
+        @keyframes tagRemove {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+                max-width: 200px;
+                padding: 4px 10px;
+                margin: 0;
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0);
+                max-width: 0;
+                padding: 0;
+                margin: 0;
+            }
+        }
+        
+        /* 标签位移动画 - 补位效果 */
+        .filter-status .filter-tag.shift-left {
+            animation: shiftLeft 0.3s ease-out forwards;
+        }
+        
+        @keyframes shiftLeft {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+        
+        /* 关闭按钮遮罩层 */
+        .filter-status .filter-tag::after {
+            content: '✕';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 16px;
+            font-weight: bold;
+            color: #991b1b;
+            opacity: 0;
+            transition: all 0.2s ease;
+            pointer-events: none;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        /* 悬停时显示关闭按钮并添加遮罩 */
+        .filter-status .filter-tag:hover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .filter-status .filter-tag:hover::after {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* 隐藏原始文本，显示关闭按钮 */
+        .filter-status .filter-tag:hover .tag-text {
+            opacity: 0;
+        }
+        
+        .filter-status .filter-tag .tag-text {
+            transition: opacity 0.2s ease;
+        }
+        
         .filter-status .clear-btn {
             padding: 6px 14px;
             color: white;
@@ -809,7 +913,7 @@ function hideStatus() {
 }
 
 // ==========================================
-// 筛选状态显示
+// 筛选状态显示 - 增强版（支持点击删除）
 // ==========================================
 // 列名映射（英文字段名 -> 中文显示名）
 const columnNameMap = {
@@ -840,16 +944,26 @@ const filterTypeMap = {
     'notBlank': '不为空'
 };
 
+// 存储当前筛选标签的信息，用于点击删除
+let currentFilterTags = [];
+
 function updateFilterStatus() {
     const filterStatus = document.getElementById('filterStatus');
     const filterTags = document.getElementById('filterTags');
-    const filterCount = document.getElementById('filterCount');
     
-    let tags = [];
+    // 重置标签信息数组
+    currentFilterTags = [];
+    let tagsHtml = [];
     
     // 搜索框筛选
     if (currentSearchText.trim()) {
-        tags.push(`<span class="filter-tag search">📝 搜索"${escapeHtml(currentSearchText.trim())}"</span>`);
+        const tagId = 'tag-search';
+        currentFilterTags.push({
+            id: tagId,
+            type: 'search',
+            data: currentSearchText.trim()
+        });
+        tagsHtml.push(`<span class="filter-tag search" id="${tagId}" onclick="handleTagClick('${tagId}')"><span class="tag-text">📝 搜索"${escapeHtml(currentSearchText.trim())}"</span></span>`);
     }
     
     // AG Grid 列筛选
@@ -873,7 +987,13 @@ function updateFilterStatus() {
                     }
                     return `${filterType} ${filterValue}`;
                 });
-                tags.push(`<span class="filter-tag column">🔍 ${colName} ${conditionTexts.join(operator)}</span>`);
+                const tagId = `tag-column-${field}`;
+                currentFilterTags.push({
+                    id: tagId,
+                    type: 'column',
+                    data: field
+                });
+                tagsHtml.push(`<span class="filter-tag column" id="${tagId}" onclick="handleTagClick('${tagId}')"><span class="tag-text">🔍 ${colName} ${conditionTexts.join(operator)}</span></span>`);
             } else {
                 // 单个条件
                 const filterType = filterTypeMap[filter.type] || filter.type;
@@ -885,7 +1005,13 @@ function updateFilterStatus() {
                     filterValue = filter.filter;
                 }
                 
-                tags.push(`<span class="filter-tag column">🔍 ${colName} ${filterType} ${filterValue}</span>`);
+                const tagId = `tag-column-${field}`;
+                currentFilterTags.push({
+                    id: tagId,
+                    type: 'column',
+                    data: field
+                });
+                tagsHtml.push(`<span class="filter-tag column" id="${tagId}" onclick="handleTagClick('${tagId}')"><span class="tag-text">🔍 ${colName} ${filterType} ${filterValue}</span></span>`);
             }
         }
     }
@@ -897,15 +1023,61 @@ function updateFilterStatus() {
     }
     
     // 显示或隐藏状态区
-    if (tags.length > 0) {
+    if (tagsHtml.length > 0) {
         filterStatus.classList.add('visible');
-        filterTags.innerHTML = tags.join('');
+        filterTags.innerHTML = tagsHtml.join('');
     } else {
         filterStatus.classList.remove('visible');
     }
     
     // 同步更新页脚的记录数
     updateFooterCount();
+}
+
+// 处理标签点击 - 带动画效果
+function handleTagClick(tagId) {
+    const tagInfo = currentFilterTags.find(t => t.id === tagId);
+    if (!tagInfo) return;
+    
+    const tagElement = document.getElementById(tagId);
+    if (!tagElement) return;
+    
+    // 添加删除动画类
+    tagElement.classList.add('removing');
+    
+    // 获取所有标签元素，用于后续补位动画
+    const allTags = Array.from(document.querySelectorAll('.filter-tag'));
+    const tagIndex = allTags.indexOf(tagElement);
+    
+    // 动画结束后执行删除操作
+    setTimeout(() => {
+        if (tagInfo.type === 'search') {
+            // 删除搜索标签
+            clearSearchOnly(true);
+        } else if (tagInfo.type === 'column') {
+            // 删除列筛选标签
+            clearColumnFilter(tagInfo.data);
+        }
+    }, 280); // 略小于动画时间，让动画更流畅
+}
+
+// 清除单个列的筛选（带动画反馈）
+function clearColumnFilter(field) {
+    if (gridApi) {
+        gridApi.destroyFilter(field);
+    }
+    
+    // 如果搜索框有内容，重新应用搜索
+    if (currentSearchText.trim()) {
+        filterData(currentSearchText);
+    } else if (gridApi) {
+        gridApi.setGridOption('rowData', allData);
+        updateCount(allData.length);
+        lastFilteredCount = allData.length;
+    }
+    
+    updateFilterStatus();
+    showToast('✅ 已删除此筛选条件');
 }
 
 function clearAllFilters() {
@@ -936,7 +1108,7 @@ function clearAllFilters() {
     showToast('✅ 已清除所有筛选条件');
 }
 
-function clearSearchOnly() {
+function clearSearchOnly(skipToast = false) {
     // 只清除搜索框
     input.value = '';
     currentSearchText = '';
@@ -953,7 +1125,9 @@ function clearSearchOnly() {
     updateFilterStatus();
     input.focus();
     
-    showToast('✅ 已清除搜索条件');
+    if (!skipToast) {
+        showToast('✅ 已清除搜索条件');
+    }
 }
 
 function clearFilterOnly() {
