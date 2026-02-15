@@ -1063,6 +1063,7 @@ function handleTagClick(tagId) {
         if (tagInfo.type === 'search') {
             // 删除搜索标签
             clearSearchOnly(true);
+            showToast('✅ 已删除搜索条件');
         } else if (tagInfo.type === 'column') {
             // 删除列筛选标签
             clearColumnFilter(tagInfo.data);
