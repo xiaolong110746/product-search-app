@@ -162,7 +162,7 @@
             height: 28px;
             position: relative;
             cursor: pointer;
-            transition: transform 0.25s ease, margin 0.25s ease, padding-left 0.25s ease, padding-right 0.25s ease;
+            transition: box-shadow 0.2s ease;
             user-select: none;
             overflow: hidden;
         }
@@ -177,9 +177,9 @@
             color: #166534;
         }
         
-        /* 悬停效果 - 只使用半透明遮罩，不改变背景色 */
+        /* 悬停效果 */
         .filter-status .filter-tag:hover {
-            transform: scale(1.02);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
         }
         
         /* 关闭按钮遮罩层 */
@@ -190,11 +190,12 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, 0.25);
+            background-color: rgba(0, 0, 0, 0.2);
             border-radius: 4px;
             opacity: 0;
             transition: opacity 0.2s ease;
             pointer-events: none;
+            z-index: 1;
         }
         
         .filter-status .filter-tag:hover::before {
@@ -208,13 +209,22 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0);
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             color: #fff;
             opacity: 0;
             transition: all 0.2s ease;
             pointer-events: none;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            z-index: 3;
+            background-color: rgba(220, 38, 38, 0.9);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
         }
         
         .filter-status .filter-tag:hover::after {
@@ -222,14 +232,14 @@
             transform: translate(-50%, -50%) scale(1);
         }
         
-        /* 悬停时隐藏原始文本 */
-        .filter-status .filter-tag:hover .tag-text {
-            opacity: 0;
-        }
-        
+        /* 标签文字保持在最上层 */
         .filter-status .filter-tag .tag-text {
             transition: opacity 0.2s ease;
+            position: relative;
+            z-index: 2;
         }
+        
+        /* 悬停时文字保持可见 */
         
         /* 删除动画 - 缩小消失 */
         .filter-status .filter-tag.removing {
