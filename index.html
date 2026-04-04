@@ -981,8 +981,9 @@ function initGlobalScannerCapture() {
         if (e.key === 'Enter') {
             if (scannerIsScanning && scannerBuffer.length >= SCANNER_MIN_LENGTH) {
                 e.preventDefault();
-                // 直接替换搜索框内容为本次扫码内容，避免累加
-                input.value = scannerBuffer;
+                // 追加到搜索框，用逗号分隔保留所有扫码结果
+                const existing = input.value.trim();
+                input.value = existing ? existing + ',' + scannerBuffer : scannerBuffer;
                 scannerBuffer = '';
                 scannerIsScanning = false;
                 clearTimeout(scannerTimeout);
