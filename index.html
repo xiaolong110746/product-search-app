@@ -45,7 +45,7 @@
         .search-box { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; position: relative; flex-shrink: 0; }
         .search-container {
             flex: 1; padding: 8px 12px; font-size: 1.1rem; border: 2px solid #e2e8f0; border-radius: 8px;
-            outline: none; transition: all 0.2s; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+            outline: none; transition: all 0.2s; display: flex; align-items: center; flex-wrap: wrap;
             min-height: 48px; background: white; cursor: text;
         }
         .search-container:focus-within { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
@@ -53,7 +53,7 @@
             display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px 4px 12px;
             background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; border-radius: 14px;
             font-size: 0.9rem; white-space: nowrap; box-shadow: 0 1px 3px rgba(37,99,235,0.15);
-            transition: all 0.15s;
+            transition: all 0.15s; margin: 0 3px;
         }
         .search-tag:hover { box-shadow: 0 2px 6px rgba(37,99,235,0.25); }
         .search-tag-text { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
@@ -66,6 +66,7 @@
         .search-inline-input {
             border: none; outline: none; font-size: 1.1rem;
             font-family: inherit; padding: 4px 0; background: transparent;
+            margin: 0;
         }
         
         /* 状态徽章样式 */
@@ -1058,12 +1059,22 @@ function updateInputStyle() {
     if (hasText) {
         input.style.flex = '0 0 auto';
         input.style.minWidth = '60px';
+        input.style.width = '';
+        input.style.padding = '';
+        input.style.caretColor = 'auto';
     } else if (atEnd) {
         input.style.flex = '1 1 auto';
         input.style.minWidth = '100px';
+        input.style.width = '';
+        input.style.padding = '';
+        input.style.caretColor = 'auto';
     } else {
+        // 光标在中间：显示为细竖线，无额外宽度
         input.style.flex = '0 0 auto';
-        input.style.minWidth = '2px';
+        input.style.minWidth = '0px';
+        input.style.width = '0px';
+        input.style.padding = '0';
+        input.style.caretColor = '#2563eb';
     }
 }
 
@@ -1164,6 +1175,7 @@ function initScannerLogic() {
             cursorPosition--;
             renderSearchTags();
             triggerSearch();
+            input.focus();
         }
 
         // 输入框为空时，Delete 删除光标后方的标签
@@ -1172,6 +1184,7 @@ function initScannerLogic() {
             currentKeywords.splice(cursorPosition, 1);
             renderSearchTags();
             triggerSearch();
+            input.focus();
         }
 
         // 左箭头：输入框为空或光标在最前时，光标向左移动一个标签
