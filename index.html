@@ -1124,6 +1124,8 @@ function initGlobalScannerCapture() {
                 }
                 // 以关键字标签方式追加，自动去重
                 addKeyword(scannerBuffer);
+                // 无论是否重复，都清除实时搜索的遗留定时器，防止泄露字符的定时器污染
+                if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null; }
                 input.value = '';
                 scannerBuffer = '';
                 scannerIsScanning = false;
