@@ -910,6 +910,63 @@ function initScannerLogic() {
     });
 }
 
+// ==========================================
+// 全局扫描枪捕获 - 无论搜索框是否聚焦都能接收扫码输入
+// ==========================================
+let scannerBuffer = '';         // 扫描枪输入缓冲区
+let scannerLastTime = 0;       // 上一次接收字符的时间戳
+let scannerTimeout = null;     // 超时清除缓冲区的定时器
+const SCANNER_MAX_GAP = 80;    // 扫描枪字符最大间隔（毫秒），扫描枪通常 < 50ms，人工打字通常 > 100ms
+const SCANNER_MIN_LENGTH = 3;  // 最短有效扫码长度
+
+function initGlobalScannerCapture() {
+    document.addEventListener('keydown', function(e) {
+        // 如果搜索框已有焦点，让自然输入流程处理（不做额外拦截）
+        if (document.activeElement === input) return;
+
+        // 忽略组合键（Ctrl/Alt/Meta），避免干扰正常快捷键操作
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+        const now = Date.now();
+
+        // 扫描枪输入结束通常是 Enter 键
+        if (e.key === 'Enter') {
+            if (scannerBuffer.length >= SCANNER_MIN_LENGTH) {
+                e.preventDefault();
+                // 将扫描内容填入搜索框并触发搜索
+                input.value = scannerBuffer;
+                scannerBuffer = '';
+                clearTimeout(scannerTimeout);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.focus();
+            } else {
+                // 缓冲区内容太短，不是扫码，清空
+                scannerBuffer = '';
+            }
+            return;
+        }
+
+        // 只捕获可打印字符（key 长度为1的就是单个字符）
+        if (e.key.length === 1) {
+            // 判断字符到达速度是否属于扫描枪特征（极快连续输入）
+            if (scannerBuffer.length === 0 || (now - scannerLastTime) < SCANNER_MAX_GAP) {
+                scannerBuffer += e.key;
+                scannerLastTime = now;
+
+                // 重置超时定时器：超过一定时间没有新字符，说明不是扫描枪，清空缓冲区
+                clearTimeout(scannerTimeout);
+                scannerTimeout = setTimeout(() => {
+                    scannerBuffer = '';
+                }, SCANNER_MAX_GAP * 2);
+            } else {
+                // 间隔太长，不是扫描枪，重置缓冲区并记录当前字符
+                scannerBuffer = e.key;
+                scannerLastTime = now;
+            }
+        }
+    });
+}
+
 function filterData(query) {
     if (!gridApi) return;
     currentSearchText = query;
@@ -1479,6 +1536,9 @@ function initApp() {
     
     // 初始化扫码逻辑
     initScannerLogic();
+    
+    // 初始化全局扫描枪捕获（无焦点也能接收扫码）
+    initGlobalScannerCapture();
     
     // 初始化右键菜单
     initContextMenu();
