@@ -1032,7 +1032,44 @@ function triggerSearch() {
 }
 
 function initScannerLogic() {
+    // 实时搜索：每输入一个字符就搜索（防抖 256ms）
+    input.addEventListener('input', function(e) {
+        const val = input.value.trim();
+        // 如果正在扫码，不触发实时搜索
+        if (scannerIsScanning) return;
+
+        if (notFoundTimer) {
+            clearTimeout(notFoundTimer);
+            notFoundTimer = null;
+        }
+
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+        if (val === '') {
+            // 输入框清空，用已有标签搜索
+            lastSearchedKeywordsStr = '';
+            filterData(currentKeywords.join(','));
+            searchDebounceTimer = null;
+            return;
+        }
+
+        searchDebounceTimer = setTimeout(() => {
+            // 输入框有文字，临时按输入框内容搜索（不添加为标签）
+            lastSearchedKeywordsStr = '';
+            const query = currentKeywords.length > 0
+                ? currentKeywords.join(',') + ',' + val
+                : val;
+            filterData(query);
+            searchDebounceTimer = null;
+        }, 256);
+    });
+
+    // 回车/逗号：将输入框内容添加为关键字标签
+    // Backspace：输入框为空时删除最后一个标签
     input.addEventListener('keydown', function(e) {
+        // 扫描枪正在输入时，跳过所有处理（交给全局扫描枪捕获器）
+        if (scannerIsScanning) return;
+
         if (e.key === 'Enter' || e.key === ',' || e.key === '，') {
             e.preventDefault();
             const val = input.value.trim();
@@ -1040,6 +1077,12 @@ function initScannerLogic() {
                 addKeyword(val);
                 input.value = '';
             }
+        }
+
+        // 输入框为空时，Backspace 删除最后一个关键字标签
+        if (e.key === 'Backspace' && input.value === '' && currentKeywords.length > 0) {
+            e.preventDefault();
+            removeKeyword(currentKeywords.length - 1);
         }
     });
 }
