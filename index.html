@@ -1057,8 +1057,8 @@ function updateInputStyle() {
     const hasText = input.value.length > 0;
     const atEnd = cursorPosition >= currentKeywords.length;
     if (hasText) {
-        input.style.flex = '0 0 auto';
-        input.style.minWidth = '60px';
+        input.style.flex = '0 1 auto';  // 允许缩小，避免空间不足时被挤到下一行导致空白
+        input.style.minWidth = '2px';
         input.style.width = '';
         input.style.padding = '';
         input.style.caretColor = 'auto';
