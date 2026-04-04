@@ -916,32 +916,33 @@ function initScannerLogic() {
 let scannerBuffer = '';         // 扫描枪输入缓冲区
 let scannerLastTime = 0;       // 上一次接收字符的时间戳
 let scannerTimeout = null;     // 超时清除缓冲区的定时器
+let scannerIsScanning = false; // 标记是否正在接收扫描枪输入
 const SCANNER_MAX_GAP = 80;    // 扫描枪字符最大间隔（毫秒），扫描枪通常 < 50ms，人工打字通常 > 100ms
 const SCANNER_MIN_LENGTH = 3;  // 最短有效扫码长度
 
 function initGlobalScannerCapture() {
     document.addEventListener('keydown', function(e) {
-        // 如果搜索框已有焦点，让自然输入流程处理（不做额外拦截）
-        if (document.activeElement === input) return;
-
         // 忽略组合键（Ctrl/Alt/Meta），避免干扰正常快捷键操作
         if (e.ctrlKey || e.altKey || e.metaKey) return;
 
         const now = Date.now();
+        const isInputFocused = document.activeElement === input;
 
         // 扫描枪输入结束通常是 Enter 键
         if (e.key === 'Enter') {
-            if (scannerBuffer.length >= SCANNER_MIN_LENGTH) {
+            if (scannerIsScanning && scannerBuffer.length >= SCANNER_MIN_LENGTH) {
                 e.preventDefault();
-                // 将扫描内容填入搜索框并触发搜索
+                // 直接替换搜索框内容为本次扫码内容，避免累加
                 input.value = scannerBuffer;
                 scannerBuffer = '';
+                scannerIsScanning = false;
                 clearTimeout(scannerTimeout);
                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.focus();
+                if (!isInputFocused) input.focus();
             } else {
-                // 缓冲区内容太短，不是扫码，清空
+                // 不是扫码，正常处理
                 scannerBuffer = '';
+                scannerIsScanning = false;
             }
             return;
         }
@@ -953,15 +954,27 @@ function initGlobalScannerCapture() {
                 scannerBuffer += e.key;
                 scannerLastTime = now;
 
+                // 连续2个以上字符都满足扫描枪速度特征时，标记为正在扫码
+                if (scannerBuffer.length >= 2) {
+                    scannerIsScanning = true;
+                }
+
+                // 如果搜索框有焦点且正在扫码，阻止字符自然输入（避免追加到旧内容）
+                if (isInputFocused && scannerIsScanning) {
+                    e.preventDefault();
+                }
+
                 // 重置超时定时器：超过一定时间没有新字符，说明不是扫描枪，清空缓冲区
                 clearTimeout(scannerTimeout);
                 scannerTimeout = setTimeout(() => {
                     scannerBuffer = '';
+                    scannerIsScanning = false;
                 }, SCANNER_MAX_GAP * 2);
             } else {
                 // 间隔太长，不是扫描枪，重置缓冲区并记录当前字符
                 scannerBuffer = e.key;
                 scannerLastTime = now;
+                scannerIsScanning = false;
             }
         }
     });
