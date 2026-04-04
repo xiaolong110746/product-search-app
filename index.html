@@ -1188,33 +1188,59 @@ function initScannerLogic() {
             input.focus();
         }
 
-        // 左箭头：输入框为空或光标在最前时，光标向左移动一个标签
+        // 左箭头：输入框有文字时先提交为标签；输入框为空或光标在最前时，光标向左移动一个标签
         if (e.key === 'ArrowLeft' && (input.value === '' || input.selectionStart === 0) && cursorPosition > 0) {
             e.preventDefault();
+            // 如果输入框有文字，先提交为标签
+            const val = input.value.trim();
+            if (val) {
+                addKeyword(val);
+                input.value = '';
+                updateInputStyle();
+            }
             cursorPosition--;
             renderSearchTags();
             input.focus();
         }
 
-        // 右箭头：输入框为空或光标在最后时，光标向右移动一个标签
+        // 右箭头：输入框有文字时先提交为标签；输入框为空或光标在最后时，光标向右移动一个标签
         if (e.key === 'ArrowRight' && (input.value === '' || input.selectionStart === input.value.length) && cursorPosition < currentKeywords.length) {
             e.preventDefault();
+            // 如果输入框有文字，先提交为标签
+            const val = input.value.trim();
+            if (val) {
+                addKeyword(val);
+                input.value = '';
+                updateInputStyle();
+            }
             cursorPosition++;
             renderSearchTags();
             input.focus();
         }
 
-        // Home：光标移到最前面
+        // Home：输入框有文字时先提交为标签；光标移到最前面
         if (e.key === 'Home') {
             e.preventDefault();
+            const val = input.value.trim();
+            if (val) {
+                addKeyword(val);
+                input.value = '';
+                updateInputStyle();
+            }
             cursorPosition = 0;
             renderSearchTags();
             input.focus();
         }
 
-        // End：光标移到最后面
+        // End：输入框有文字时先提交为标签；光标移到最后面
         if (e.key === 'End') {
             e.preventDefault();
+            const val = input.value.trim();
+            if (val) {
+                addKeyword(val);
+                input.value = '';
+                updateInputStyle();
+            }
             cursorPosition = currentKeywords.length;
             renderSearchTags();
             input.focus();
