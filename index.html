@@ -661,7 +661,8 @@ const columnDefs = [
     { field: 'pricePack', headerName: '售价（包）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
     { field: 'suggestPack', headerName: '建议价（包）', minWidth: 80, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
     { field: 'barcodeStrip', headerName: '条码', minWidth: 90, cellRenderer: SmartHighlightRenderer },
-    { field: 'barcodePack', headerName: '包码', minWidth: 90, cellRenderer: SmartHighlightRenderer }
+    { field: 'barcodePack', headerName: '包码', minWidth: 90, cellRenderer: SmartHighlightRenderer },
+    { field: 'remark', headerName: '备注', minWidth: 100, cellRenderer: SmartHighlightRenderer }
 ];
 
 const gridOptions = {
@@ -785,7 +786,8 @@ function parseExcelData(arrayBuffer) {
                 pricePack: getNum(['售价（包）', '包售价']),
                 suggestPack: getNum(['建议价（包）']),
                 barcodeStrip: get(['条码（条）', '条码', '商品条码', '条形码', '条码(条)']),
-                barcodePack: get(['条码（包）', '包码', '条码(包)', '包条码', '包的条码'])
+                barcodePack: get(['条码（包）', '包码', '条码(包)', '包条码', '包的条码']),
+                remark: get(['备注', '说明', '注释', '标记'])
             };
         }).filter(item => item.name || item.barcodeStrip || item.barcodePack);
     } catch (e) {
@@ -1005,7 +1007,8 @@ const columnNameMap = {
     'pricePack': '售价（包）',
     'suggestPack': '建议价（包）',
     'barcodeStrip': '条码',
-    'barcodePack': '包码'
+    'barcodePack': '包码',
+    'remark': '备注'
 };
 
 // 筛选类型映射
