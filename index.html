@@ -1158,7 +1158,7 @@ function initScannerLogic() {
         // 扫描枪正在输入时，跳过所有处理（交给全局扫描枪捕获器）
         if (scannerIsScanning) return;
 
-        if (e.key === 'Enter' || e.key === ',' || e.key === '，') {
+        if (e.key === 'Enter' || e.key === ',' || e.key === ' ' || e.key === 'Tab') {
             e.preventDefault();
             const val = input.value.trim();
             if (val) {
