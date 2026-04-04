@@ -49,7 +49,6 @@
             min-height: 48px; background: white; cursor: text;
         }
         .search-container:focus-within { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
-        .search-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .search-tag {
             display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px 4px 12px;
             background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; border-radius: 14px;
@@ -57,12 +56,6 @@
             transition: all 0.15s;
         }
         .search-tag:hover { box-shadow: 0 2px 6px rgba(37,99,235,0.25); }
-        .search-tag:focus { outline: none; }
-        .search-tag.focused {
-            outline: 2px solid #2563eb;
-            outline-offset: 1px;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
-        }
         .search-tag-text { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
         .search-tag-close {
             display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
@@ -71,7 +64,7 @@
         }
         .search-tag-close:hover { background-color: rgba(30,58,138,0.15); }
         .search-inline-input {
-            flex: 1; min-width: 100px; border: none; outline: none; font-size: 1.1rem;
+            border: none; outline: none; font-size: 1.1rem;
             font-family: inherit; padding: 4px 0; background: transparent;
         }
         
@@ -408,7 +401,6 @@
 
     <div class="search-box">
         <div id="searchContainer" class="search-container">
-            <div id="searchTags" class="search-tags"></div>
             <input type="text" id="searchInput" class="search-inline-input" placeholder="扫码或输入名称/拼音，按回车添加..." autofocus>
         </div>
         <div id="statusBadge" class="status-badge">
@@ -911,6 +903,7 @@ function handleFileUpload(event) {
     
     // 先清除搜索和筛选
     currentKeywords = [];
+    cursorPosition = 0;
     renderSearchTags();
     input.value = '';
     currentSearchText = '';
@@ -974,151 +967,130 @@ const statusText = document.getElementById('statusText');
 let notFoundTimer = null;
 let searchDebounceTimer = null;
 let currentKeywords = []; // 当前搜索关键字数组
-let focusedTagIndex = -1; // 当前键盘聚焦的标签索引，-1 表示无聚焦（输入框有焦点）
+let cursorPosition = 0; // 虚拟光标位置：0~N，表示光标在第 cursorPosition 个标签之前
 
-// 点击搜索容器时聚焦到内嵌输入框
-document.getElementById('searchContainer').addEventListener('click', function() {
+// 点击搜索容器：检测点击位置，移动光标到对应标签间隙
+function handleContainerClick(e) {
+    if (e.target.classList.contains('search-tag-close')) return;
+    if (e.target === input) return;
+    if (e.target.closest('.search-tag')) {
+        input.focus();
+        return;
+    }
+    // 点击空白区域：根据水平坐标判断光标应在哪个间隙
+    const tags = Array.from(this.querySelectorAll('.search-tag'));
+    if (tags.length === 0) {
+        cursorPosition = 0;
+    } else {
+        const clickX = e.clientX;
+        cursorPosition = tags.length; // 默认：末尾
+        if (clickX < tags[0].getBoundingClientRect().left) {
+            cursorPosition = 0;
+        } else {
+            for (let i = 1; i < tags.length; i++) {
+                const prevRight = tags[i - 1].getBoundingClientRect().right;
+                const currLeft = tags[i].getBoundingClientRect().left;
+                if (clickX < (prevRight + currLeft) / 2) {
+                    cursorPosition = i;
+                    break;
+                }
+            }
+        }
+    }
+    renderSearchTags();
     input.focus();
-});
+}
+document.getElementById('searchContainer').addEventListener('click', handleContainerClick);
 
 // ==========================================
 // 关键字标签管理
 // ==========================================
-function addKeyword(keyword) {
+function addKeyword(keyword, position = null) {
     keyword = keyword.trim().toLowerCase();
     if (!keyword) return;
-    // 去重检查
     if (currentKeywords.includes(keyword)) return;
-    currentKeywords.push(keyword);
+    const insertPos = position !== null ? position : cursorPosition;
+    currentKeywords.splice(insertPos, 0, keyword);
+    cursorPosition = insertPos + 1;
     renderSearchTags();
     triggerSearch();
 }
 
-function removeKeyword(idx, fromFocusedTag = false) {
+function removeKeyword(idx) {
     if (idx < 0 || idx >= currentKeywords.length) return;
     currentKeywords.splice(idx, 1);
-    focusedTagIndex = -1;
+    if (cursorPosition > idx) cursorPosition--;
     renderSearchTags();
     triggerSearch();
-    if (fromFocusedTag) {
-        // 从聚焦标签删除：聚焦到上一个标签（如果有的话），否则聚焦输入框
-        if (idx > 0 && idx <= currentKeywords.length) {
-            focusTag(idx - 1);
-        } else {
-            input.focus();
-        }
-    } else {
-        input.focus();
-    }
+    input.focus();
 }
 
 function clearAllKeywords() {
     currentKeywords = [];
-    focusedTagIndex = -1;
+    cursorPosition = 0;
     renderSearchTags();
     triggerSearch();
 }
 
-// 聚焦到指定标签
-function focusTag(idx) {
-    // 清除所有标签的视觉聚焦状态
-    document.querySelectorAll('#searchTags .search-tag.focused').forEach(t => t.classList.remove('focused'));
-    if (idx < 0 || idx >= currentKeywords.length) return;
-    focusedTagIndex = idx;
-    const tags = document.querySelectorAll('#searchTags .search-tag');
-    if (tags[idx]) {
-        tags[idx].classList.add('focused');
-        tags[idx].focus();
+// 创建单个标签 DOM 元素
+function createTagElement(kw, idx) {
+    const tag = document.createElement('span');
+    tag.className = 'search-tag';
+    const textSpan = document.createElement('span');
+    textSpan.className = 'search-tag-text';
+    textSpan.textContent = kw;
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'search-tag-close';
+    closeBtn.textContent = '×';
+    closeBtn.onclick = function(e) {
+        e.stopPropagation();
+        removeKeyword(idx);
+    };
+    tag.appendChild(textSpan);
+    tag.appendChild(closeBtn);
+    return tag;
+}
+
+// 根据光标位置动态调整 input 宽度
+function updateInputStyle() {
+    const hasText = input.value.length > 0;
+    const atEnd = cursorPosition >= currentKeywords.length;
+    if (hasText) {
+        input.style.flex = '0 0 auto';
+        input.style.minWidth = '60px';
+    } else if (atEnd) {
+        input.style.flex = '1 1 auto';
+        input.style.minWidth = '100px';
+    } else {
+        input.style.flex = '0 0 auto';
+        input.style.minWidth = '2px';
     }
 }
 
-// 取消所有标签聚焦
-function blurAllTags() {
-    focusedTagIndex = -1;
-    document.querySelectorAll('#searchTags .search-tag.focused').forEach(t => t.classList.remove('focused'));
-}
-
+// 重新渲染标签，将 input 插入到 cursorPosition 对应位置作为光标指示
 function renderSearchTags() {
-    const container = document.getElementById('searchTags');
+    const container = document.getElementById('searchContainer');
+    const inputEl = document.getElementById('searchInput');
+    // 安全取出 input（避免被清空）
+    if (inputEl.parentNode === container) {
+        container.removeChild(inputEl);
+    }
+    // 清空所有子元素
     container.innerHTML = '';
-    currentKeywords.forEach((kw, idx) => {
-        const tag = document.createElement('span');
-        tag.className = 'search-tag';
-        if (idx === focusedTagIndex) tag.classList.add('focused');
-        tag.tabIndex = 0;
-        tag.setAttribute('role', 'button');
-        tag.setAttribute('aria-label', '关键字: ' + kw);
-        const textSpan = document.createElement('span');
-        textSpan.className = 'search-tag-text';
-        textSpan.textContent = kw;
-        const closeBtn = document.createElement('span');
-        closeBtn.className = 'search-tag-close';
-        closeBtn.textContent = '×';
-        closeBtn.onclick = function(e) {
-            e.stopPropagation();
-            removeKeyword(idx);
-        };
-        // 点击标签主体聚焦该标签（不是点击 × 关闭按钮）
-        tag.addEventListener('click', function(e) {
-            if (e.target === closeBtn) return;
-            e.stopPropagation(); // 防止冒泡到搜索容器触发 input.focus()
-            focusTag(idx);
-        });
-        // 标签键盘导航
-        tag.addEventListener('keydown', function(e) {
-            if (scannerIsScanning) return;
-            if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                if (idx > 0) {
-                    focusTag(idx - 1);
-                }
-                // 第一个标签按左箭头：不做任何操作，保持在当前标签
-            } else if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                if (idx < currentKeywords.length - 1) {
-                    focusTag(idx + 1);
-                } else {
-                    // 最后一个标签按右箭头：聚焦输入框
-                    input.focus();
-                }
-            } else if (e.key === 'Backspace' || e.key === 'Delete') {
-                e.preventDefault();
-                removeKeyword(idx, true); // fromFocusedTag = true
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                input.focus();
-            } else if (e.key === 'Home') {
-                e.preventDefault();
-                if (currentKeywords.length > 0) focusTag(0);
-            } else if (e.key === 'End') {
-                e.preventDefault();
-                input.focus();
-            } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                // 可打印字符：切换到输入框并插入该字符
-                e.preventDefault();
-                input.focus();
-                const start = input.selectionStart;
-                const end = input.selectionEnd;
-                input.value = input.value.substring(0, start) + e.key + input.value.substring(end);
-                input.selectionStart = input.selectionEnd = start + 1;
-                input.dispatchEvent(new Event('input'));
-            }
-        });
-        // 标签失去焦点时清除视觉聚焦
-        tag.addEventListener('blur', function(e) {
-            tag.classList.remove('focused');
-            // 如果焦点没有转移到输入框或另一个标签，清除聚焦索引
-            const related = e.relatedTarget;
-            if (related !== input && (!related || !related.classList.contains('search-tag'))) {
-                focusedTagIndex = -1;
-            }
-        });
-        tag.appendChild(textSpan);
-        tag.appendChild(closeBtn);
-        container.appendChild(tag);
-    });
-    // 更新内嵌输入框的 placeholder
+    // 插入光标前的标签
+    for (let i = 0; i < cursorPosition && i < currentKeywords.length; i++) {
+        container.appendChild(createTagElement(currentKeywords[i], i));
+    }
+    // 插入 input（= 光标位置）
+    container.appendChild(inputEl);
+    // 插入光标后的标签
+    for (let i = cursorPosition; i < currentKeywords.length; i++) {
+        container.appendChild(createTagElement(currentKeywords[i], i));
+    }
+    // 更新 placeholder
     input.placeholder = currentKeywords.length === 0 ? '扫码或输入名称/拼音，按回车添加...' : '';
+    // 调整 input 宽度
+    updateInputStyle();
 }
 
 function triggerSearch() {
@@ -1151,6 +1123,7 @@ function initScannerLogic() {
             lastSearchedKeywordsStr = '';
             filterData(currentKeywords.join(','));
             searchDebounceTimer = null;
+            updateInputStyle();
             return;
         }
 
@@ -1163,11 +1136,13 @@ function initScannerLogic() {
             filterData(query);
             searchDebounceTimer = null;
         }, 256);
+        updateInputStyle();
     });
 
-    // 回车/逗号：将输入框内容添加为关键字标签
-    // Backspace：输入框为空时删除最后一个标签
-    // ArrowLeft：输入框为空或光标在最前时，聚焦最后一个标签
+    // 回车/逗号：在光标位置插入新标签
+    // Backspace：输入框为空时删除光标前的标签
+    // Delete：输入框为空时删除光标后的标签
+    // ArrowLeft/Right：光标在边界时移动光标位置
     input.addEventListener('keydown', function(e) {
         // 扫描枪正在输入时，跳过所有处理（交给全局扫描枪捕获器）
         if (scannerIsScanning) return;
@@ -1176,26 +1151,61 @@ function initScannerLogic() {
             e.preventDefault();
             const val = input.value.trim();
             if (val) {
-                addKeyword(val);
+                addKeyword(val); // 在当前光标位置插入
                 input.value = '';
+                updateInputStyle();
             }
         }
 
-        // 输入框为空时，Backspace 删除最后一个关键字标签
-        if (e.key === 'Backspace' && input.value === '' && currentKeywords.length > 0) {
+        // 输入框为空时，Backspace 删除光标前方的标签
+        if (e.key === 'Backspace' && input.value === '' && cursorPosition > 0) {
             e.preventDefault();
-            removeKeyword(currentKeywords.length - 1);
+            currentKeywords.splice(cursorPosition - 1, 1);
+            cursorPosition--;
+            renderSearchTags();
+            triggerSearch();
         }
 
-        // 左箭头：当输入框为空或光标在最前面时，聚焦最后一个标签
-        if (e.key === 'ArrowLeft' && (input.value === '' || input.selectionStart === 0) && currentKeywords.length > 0) {
+        // 输入框为空时，Delete 删除光标后方的标签
+        if (e.key === 'Delete' && input.value === '' && cursorPosition < currentKeywords.length) {
             e.preventDefault();
-            focusTag(currentKeywords.length - 1);
+            currentKeywords.splice(cursorPosition, 1);
+            renderSearchTags();
+            triggerSearch();
+        }
+
+        // 左箭头：输入框为空或光标在最前时，光标向左移动一个标签
+        if (e.key === 'ArrowLeft' && (input.value === '' || input.selectionStart === 0) && cursorPosition > 0) {
+            e.preventDefault();
+            cursorPosition--;
+            renderSearchTags();
+            input.focus();
+        }
+
+        // 右箭头：输入框为空或光标在最后时，光标向右移动一个标签
+        if (e.key === 'ArrowRight' && (input.value === '' || input.selectionStart === input.value.length) && cursorPosition < currentKeywords.length) {
+            e.preventDefault();
+            cursorPosition++;
+            renderSearchTags();
+            input.focus();
+        }
+
+        // Home：光标移到最前面
+        if (e.key === 'Home') {
+            e.preventDefault();
+            cursorPosition = 0;
+            renderSearchTags();
+            input.focus();
+        }
+
+        // End：光标移到最后面
+        if (e.key === 'End') {
+            e.preventDefault();
+            cursorPosition = currentKeywords.length;
+            renderSearchTags();
+            input.focus();
         }
     });
-
-    // 输入框获得焦点时，取消所有标签的键盘聚焦状态
-    input.addEventListener('focus', blurAllTags);
 }
 
 // ==========================================
@@ -1228,11 +1238,14 @@ function initGlobalScannerCapture() {
                         input.value = val.substring(0, val.length - scannerLeakedLen);
                     }
                 }
-                // 以关键字标签方式追加，自动去重
-                addKeyword(scannerBuffer);
+                // 以关键字标签方式追加到末尾，自动去重
+                addKeyword(scannerBuffer, currentKeywords.length);
                 // 无论是否重复，都清除实时搜索的遗留定时器，防止泄露字符的定时器污染
                 if (searchDebounceTimer) { clearTimeout(searchDebounceTimer); searchDebounceTimer = null; }
+                // 确保光标在末尾
+                cursorPosition = currentKeywords.length;
                 input.value = '';
+                renderSearchTags();
                 scannerBuffer = '';
                 scannerIsScanning = false;
                 scannerLeakedLen = 0;
@@ -1353,6 +1366,7 @@ function clearSearch() {
     }
     
     currentKeywords = [];
+    cursorPosition = 0;
     renderSearchTags();
     input.value = '';
     currentSearchText = '';
@@ -1604,6 +1618,7 @@ function clearAllFilters() {
     animateAllTagsRemove(tagIds).then(() => {
         // 动画完成后清除搜索关键字
         currentKeywords = [];
+        cursorPosition = 0;
         renderSearchTags();
         input.value = '';
         currentSearchText = '';
@@ -1648,6 +1663,7 @@ function clearSearchOnly(skipToast = false, withAnimation = true) {
 function executeClearSearch(skipToast) {
     // 清除所有搜索关键字标签
     currentKeywords = [];
+    cursorPosition = 0;
     renderSearchTags();
     input.value = '';
     currentSearchText = '';
@@ -1825,6 +1841,7 @@ function clearSavedData() {
     
     // 清除搜索关键字
     currentKeywords = [];
+    cursorPosition = 0;
     renderSearchTags();
     input.value = '';
     currentSearchText = '';
