@@ -966,6 +966,7 @@ let scannerBuffer = '';         // 扫描枪输入缓冲区
 let scannerLastTime = 0;       // 上一次接收字符的时间戳
 let scannerTimeout = null;     // 超时清除缓冲区的定时器
 let scannerIsScanning = false; // 标记是否正在接收扫描枪输入
+let scannerLeakedLen = 0;      // 确认为扫描枪时搜索框中泄露的字符长度
 const SCANNER_MAX_GAP = 80;    // 扫描枪字符最大间隔（毫秒），扫描枪通常 < 50ms，人工打字通常 > 100ms
 const SCANNER_MIN_LENGTH = 3;  // 最短有效扫码长度
 
@@ -981,11 +982,17 @@ function initGlobalScannerCapture() {
         if (e.key === 'Enter') {
             if (scannerIsScanning && scannerBuffer.length >= SCANNER_MIN_LENGTH) {
                 e.preventDefault();
+                // 移除泄露到搜索框中的字符（确认扫码前泄露的前几个字符）
+                let currentValue = input.value;
+                if (scannerLeakedLen > 0 && currentValue.length >= scannerLeakedLen) {
+                    currentValue = currentValue.substring(0, currentValue.length - scannerLeakedLen);
+                }
+                currentValue = currentValue.trim();
                 // 追加到搜索框，用逗号分隔保留所有扫码结果
-                const existing = input.value.trim();
-                input.value = existing ? existing + ',' + scannerBuffer : scannerBuffer;
+                input.value = currentValue ? currentValue + ',' + scannerBuffer : scannerBuffer;
                 scannerBuffer = '';
                 scannerIsScanning = false;
+                scannerLeakedLen = 0;
                 clearTimeout(scannerTimeout);
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 if (!isInputFocused) input.focus();
@@ -993,6 +1000,7 @@ function initGlobalScannerCapture() {
                 // 不是扫码，正常处理
                 scannerBuffer = '';
                 scannerIsScanning = false;
+                scannerLeakedLen = 0;
             }
             return;
         }
@@ -1004,9 +1012,10 @@ function initGlobalScannerCapture() {
                 scannerBuffer += e.key;
                 scannerLastTime = now;
 
-                // 连续2个以上字符都满足扫描枪速度特征时，标记为正在扫码
-                if (scannerBuffer.length >= 2) {
+                // 从非扫码状态变为扫码状态时，记录搜索框中已泄露的字符长度
+                if (!scannerIsScanning && scannerBuffer.length >= 2) {
                     scannerIsScanning = true;
+                    scannerLeakedLen = scannerBuffer.length - 1; // 第1个字符没被拦截，已泄露
                 }
 
                 // 如果搜索框有焦点且正在扫码，阻止字符自然输入（避免追加到旧内容）
