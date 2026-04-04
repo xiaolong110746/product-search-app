@@ -1026,6 +1026,11 @@ function renderSearchTags() {
 }
 
 function triggerSearch() {
+    // 清除实时搜索的遗留定时器，防止扫码完成后旧定时器污染搜索结果
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = null;
+    }
     const query = currentKeywords.join(',');
     lastSearchedKeywordsStr = ''; // 重置，确保 filterData 一定会执行
     filterData(query);
