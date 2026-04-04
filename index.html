@@ -1057,10 +1057,10 @@ function updateInputStyle() {
     const hasText = input.value.length > 0;
     const atEnd = cursorPosition >= currentKeywords.length;
     if (hasText) {
-        input.style.flex = '0 1 auto';  // 允许缩小，避免空间不足时被挤到下一行导致空白
+        input.style.flex = '0 1 auto';
         input.style.minWidth = '2px';
-        input.style.width = '';
-        input.style.padding = '';
+        input.style.width = (input.value.length * 0.7 + 1) + 'em'; // 根据内容动态计算宽度
+        input.style.padding = '0 2px';
         input.style.caretColor = 'auto';
     } else if (atEnd) {
         input.style.flex = '1 1 auto';
