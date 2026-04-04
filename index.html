@@ -1069,10 +1069,10 @@ function updateInputStyle() {
         input.style.padding = '';
         input.style.caretColor = 'auto';
     } else {
-        // 光标在中间：显示为细竖线，无额外宽度
+        // 光标在中间：保留极小宽度让浏览器能渲染 caret，否则光标不可见
         input.style.flex = '0 0 auto';
-        input.style.minWidth = '0px';
-        input.style.width = '0px';
+        input.style.minWidth = '2px';
+        input.style.width = '2px';
         input.style.padding = '0';
         input.style.caretColor = '#2563eb';
     }
@@ -1165,6 +1165,7 @@ function initScannerLogic() {
                 addKeyword(val); // 在当前光标位置插入
                 input.value = '';
                 updateInputStyle();
+                input.focus(); // renderSearchTags 重建DOM后焦点丢失，需手动恢复
             }
         }
 
