@@ -43,8 +43,31 @@
         #fileInput { display: none; }
         
         .search-box { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; position: relative; flex-shrink: 0; }
-        .search-input { flex: 1; padding: 12px 16px; font-size: 1.1rem; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; transition: all 0.2s; }
-        .search-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+        .search-container {
+            flex: 1; padding: 8px 12px; font-size: 1.1rem; border: 2px solid #e2e8f0; border-radius: 8px;
+            outline: none; transition: all 0.2s; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+            min-height: 48px; background: white; cursor: text;
+        }
+        .search-container:focus-within { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+        .search-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .search-tag {
+            display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px 4px 12px;
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; border-radius: 14px;
+            font-size: 0.9rem; white-space: nowrap; box-shadow: 0 1px 3px rgba(37,99,235,0.15);
+            transition: all 0.15s;
+        }
+        .search-tag:hover { box-shadow: 0 2px 6px rgba(37,99,235,0.25); }
+        .search-tag-text { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+        .search-tag-close {
+            display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+            border-radius: 50%; font-size: 13px; line-height: 1; cursor: pointer; color: #1e40af;
+            transition: all 0.15s; flex-shrink: 0; font-weight: bold;
+        }
+        .search-tag-close:hover { background-color: rgba(30,58,138,0.15); }
+        .search-inline-input {
+            flex: 1; min-width: 100px; border: none; outline: none; font-size: 1.1rem;
+            font-family: inherit; padding: 4px 0; background: transparent;
+        }
         
         /* 状态徽章样式 */
         .status-badge {
@@ -378,7 +401,10 @@
     </header>
 
     <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="扫码或输入名称/拼音..." autofocus>
+        <div id="searchContainer" class="search-container">
+            <div id="searchTags" class="search-tags"></div>
+            <input type="text" id="searchInput" class="search-inline-input" placeholder="扫码或输入名称/拼音，按回车添加..." autofocus>
+        </div>
         <div id="statusBadge" class="status-badge">
             <span id="iconSpan"></span>
             <span id="statusText"></span>
@@ -878,6 +904,8 @@ function handleFileUpload(event) {
     if (!file) return;
     
     // 先清除搜索和筛选
+    currentKeywords = [];
+    renderSearchTags();
     input.value = '';
     currentSearchText = '';
     if (gridApi) {
@@ -937,25 +965,82 @@ const badge = document.getElementById('statusBadge');
 const iconSpan = document.getElementById('iconSpan');
 const statusText = document.getElementById('statusText');
 
-let notFoundTimer = null; // 用于未找到时自动恢复的定时器
-let searchDebounceTimer = null; // 搜索防抖定时器
+let notFoundTimer = null;
+let searchDebounceTimer = null;
+let currentKeywords = []; // 当前搜索关键字数组
+
+// 点击搜索容器时聚焦到内嵌输入框
+document.getElementById('searchContainer').addEventListener('click', function() {
+    input.focus();
+});
+
+// ==========================================
+// 关键字标签管理
+// ==========================================
+function addKeyword(keyword) {
+    keyword = keyword.trim().toLowerCase();
+    if (!keyword) return;
+    // 去重检查
+    if (currentKeywords.includes(keyword)) return;
+    currentKeywords.push(keyword);
+    renderSearchTags();
+    triggerSearch();
+}
+
+function removeKeyword(idx) {
+    if (idx < 0 || idx >= currentKeywords.length) return;
+    currentKeywords.splice(idx, 1);
+    renderSearchTags();
+    triggerSearch();
+    input.focus();
+}
+
+function clearAllKeywords() {
+    currentKeywords = [];
+    renderSearchTags();
+    triggerSearch();
+}
+
+function renderSearchTags() {
+    const container = document.getElementById('searchTags');
+    container.innerHTML = '';
+    currentKeywords.forEach((kw, idx) => {
+        const tag = document.createElement('span');
+        tag.className = 'search-tag';
+        const textSpan = document.createElement('span');
+        textSpan.className = 'search-tag-text';
+        textSpan.textContent = kw;
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'search-tag-close';
+        closeBtn.textContent = '×';
+        closeBtn.onclick = function(e) {
+            e.stopPropagation();
+            removeKeyword(idx);
+        };
+        tag.appendChild(textSpan);
+        tag.appendChild(closeBtn);
+        container.appendChild(tag);
+    });
+    // 更新内嵌输入框的 placeholder
+    input.placeholder = currentKeywords.length === 0 ? '扫码或输入名称/拼音，按回车添加...' : '';
+}
+
+function triggerSearch() {
+    const query = currentKeywords.join(',');
+    lastSearchedKeywordsStr = ''; // 重置，确保 filterData 一定会执行
+    filterData(query);
+}
 
 function initScannerLogic() {
-    input.addEventListener('input', (e) => {
-        const val = e.target.value;
-
-        // 如果有新的输入，取消之前的未找到恢复定时器
-        if (notFoundTimer) {
-            clearTimeout(notFoundTimer);
-            notFoundTimer = null;
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ',' || e.key === '，') {
+            e.preventDefault();
+            const val = input.value.trim();
+            if (val) {
+                addKeyword(val);
+                input.value = '';
+            }
         }
-
-        // 防抖：停止输入256ms后才执行搜索
-        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-        searchDebounceTimer = setTimeout(() => {
-            filterData(val);
-            searchDebounceTimer = null;
-        }, 256);
     });
 }
 
@@ -982,19 +1067,20 @@ function initGlobalScannerCapture() {
         if (e.key === 'Enter') {
             if (scannerIsScanning && scannerBuffer.length >= SCANNER_MIN_LENGTH) {
                 e.preventDefault();
-                // 移除泄露到搜索框中的字符（确认扫码前泄露的前几个字符）
-                let currentValue = input.value;
-                if (scannerLeakedLen > 0 && currentValue.length >= scannerLeakedLen) {
-                    currentValue = currentValue.substring(0, currentValue.length - scannerLeakedLen);
+                // 移除泄露到内嵌输入框中的字符
+                if (isInputFocused && scannerLeakedLen > 0) {
+                    const val = input.value;
+                    if (val.length >= scannerLeakedLen) {
+                        input.value = val.substring(0, val.length - scannerLeakedLen);
+                    }
                 }
-                currentValue = currentValue.trim();
-                // 追加到搜索框，用逗号分隔保留所有扫码结果
-                input.value = currentValue ? currentValue + ',' + scannerBuffer : scannerBuffer;
+                // 以关键字标签方式追加，自动去重
+                addKeyword(scannerBuffer);
+                input.value = '';
                 scannerBuffer = '';
                 scannerIsScanning = false;
                 scannerLeakedLen = 0;
                 clearTimeout(scannerTimeout);
-                input.dispatchEvent(new Event('input', { bubbles: true }));
                 if (!isInputFocused) input.focus();
             } else {
                 // 不是扫码，正常处理
@@ -1045,19 +1131,6 @@ function parseKeywords(text) {
     return text.split(/[,，\s]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
 }
 
-// 对关键字数组去重（保持首次出现顺序）
-function dedupKeywords(keywords) {
-    const seen = new Set();
-    const result = [];
-    for (const kw of keywords) {
-        if (!seen.has(kw)) {
-            seen.add(kw);
-            result.push(kw);
-        }
-    }
-    return result;
-}
-
 // 记录上次搜索过的关键字，用于判断是否需要重新搜索
 let lastSearchedKeywordsStr = '';
 
@@ -1066,7 +1139,6 @@ function filterData(query) {
     currentSearchText = query;
     
     if (!query.trim()) {
-        // 清空时重置上次搜索记录
         lastSearchedKeywordsStr = '';
         gridApi.setGridOption('rowData', allData);
         updateCount(allData.length);
@@ -1076,27 +1148,16 @@ function filterData(query) {
         return;
     }
     
-    // 解析关键字并去重
     const keywords = parseKeywords(query);
-    const uniqueKeywords = dedupKeywords(keywords);
     
-    // 如果存在重复关键字，更新搜索框显示（不执行搜索，因为去重后内容会再次触发 input 事件）
-    if (uniqueKeywords.length !== keywords.length) {
-        input.value = uniqueKeywords.join(',');
-        currentSearchText = input.value;
-        return;
-    }
-    
-    // 判断去重后的关键字是否与上次搜索完全相同，相同则跳过搜索（节约性能）
-    const keywordsStr = uniqueKeywords.join(',');
-    if (keywordsStr === lastSearchedKeywordsStr) {
-        return;
-    }
+    // 判断是否与上次搜索相同，相同则跳过（节约性能）
+    const keywordsStr = keywords.join(',');
+    if (keywordsStr === lastSearchedKeywordsStr) return;
     lastSearchedKeywordsStr = keywordsStr;
     
     const filtered = allData.filter(item => {
         // 任一关键字匹配即保留（OR 逻辑）
-        return uniqueKeywords.some(kw => {
+        return keywords.some(kw => {
             const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
             const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
             return hasText || hasPinyin;
@@ -1130,14 +1191,16 @@ function updateFooterCount() {
 }
 
 function clearSearch() {
-    // 取消定时器
     if (notFoundTimer) {
         clearTimeout(notFoundTimer);
         notFoundTimer = null;
     }
     
+    currentKeywords = [];
+    renderSearchTags();
     input.value = '';
-    currentSearchText = ''; 
+    currentSearchText = '';
+    lastSearchedKeywordsStr = '';
     lastFilteredCount = allData.length;
     if (gridApi) gridApi.setGridOption('rowData', allData);
     updateCount(allData.length);
@@ -1383,9 +1446,12 @@ function clearAllFilters() {
     
     // 先播放动画
     animateAllTagsRemove(tagIds).then(() => {
-        // 动画完成后清除搜索框
+        // 动画完成后清除搜索关键字
+        currentKeywords = [];
+        renderSearchTags();
         input.value = '';
         currentSearchText = '';
+        lastSearchedKeywordsStr = '';
         
         // 清除 AG Grid 筛选
         if (gridApi) {
@@ -1424,9 +1490,12 @@ function clearSearchOnly(skipToast = false, withAnimation = true) {
 }
 
 function executeClearSearch(skipToast) {
-    // 只清除搜索框
+    // 清除所有搜索关键字标签
+    currentKeywords = [];
+    renderSearchTags();
     input.value = '';
     currentSearchText = '';
+    lastSearchedKeywordsStr = '';
     
     // 恢复到全部数据，但保留列筛选
     if (gridApi) {
@@ -1598,7 +1667,9 @@ function clearSavedData() {
     // 清除 localStorage 保存的数据
     clearData();
     
-    // 清除搜索框
+    // 清除搜索关键字
+    currentKeywords = [];
+    renderSearchTags();
     input.value = '';
     currentSearchText = '';
     
