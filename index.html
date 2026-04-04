@@ -1045,11 +1045,29 @@ function parseKeywords(text) {
     return text.split(/[,，\s]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
 }
 
+// 对关键字数组去重（保持首次出现顺序）
+function dedupKeywords(keywords) {
+    const seen = new Set();
+    const result = [];
+    for (const kw of keywords) {
+        if (!seen.has(kw)) {
+            seen.add(kw);
+            result.push(kw);
+        }
+    }
+    return result;
+}
+
+// 记录上次搜索过的关键字，用于判断是否需要重新搜索
+let lastSearchedKeywordsStr = '';
+
 function filterData(query) {
     if (!gridApi) return;
     currentSearchText = query;
     
     if (!query.trim()) {
+        // 清空时重置上次搜索记录
+        lastSearchedKeywordsStr = '';
         gridApi.setGridOption('rowData', allData);
         updateCount(allData.length);
         lastFilteredCount = allData.length;
@@ -1058,11 +1076,27 @@ function filterData(query) {
         return;
     }
     
+    // 解析关键字并去重
     const keywords = parseKeywords(query);
+    const uniqueKeywords = dedupKeywords(keywords);
+    
+    // 如果存在重复关键字，更新搜索框显示（不执行搜索，因为去重后内容会再次触发 input 事件）
+    if (uniqueKeywords.length !== keywords.length) {
+        input.value = uniqueKeywords.join(',');
+        currentSearchText = input.value;
+        return;
+    }
+    
+    // 判断去重后的关键字是否与上次搜索完全相同，相同则跳过搜索（节约性能）
+    const keywordsStr = uniqueKeywords.join(',');
+    if (keywordsStr === lastSearchedKeywordsStr) {
+        return;
+    }
+    lastSearchedKeywordsStr = keywordsStr;
     
     const filtered = allData.filter(item => {
         // 任一关键字匹配即保留（OR 逻辑）
-        return keywords.some(kw => {
+        return uniqueKeywords.some(kw => {
             const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
             const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
             return hasText || hasPinyin;
