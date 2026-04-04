@@ -1053,13 +1053,19 @@ function createTagElement(kw, idx) {
 }
 
 // 根据光标位置动态调整 input 宽度
+// 创建隐藏的 span 用于精确测量文字实际渲染宽度（中英文宽度不同）
+const _widthMeasure = document.createElement('span');
+_widthMeasure.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit;padding:0 2px;';
+document.body.appendChild(_widthMeasure);
+
 function updateInputStyle() {
     const hasText = input.value.length > 0;
     const atEnd = cursorPosition >= currentKeywords.length;
     if (hasText) {
         input.style.flex = '0 1 auto';
         input.style.minWidth = '2px';
-        input.style.width = (input.value.length * 0.7 + 1) + 'em'; // 根据内容动态计算宽度
+        _widthMeasure.textContent = input.value;
+        input.style.width = Math.max(_widthMeasure.offsetWidth, 2) + 'px'; // 用实际渲染宽度
         input.style.padding = '0 2px';
         input.style.caretColor = 'auto';
     } else if (atEnd) {
