@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>烟价格查询</title>
+    <title>商品查询系统 - 自动记忆版</title>
     
     <!-- PWA 配置 -->
     <link rel="manifest" href="manifest.json">
@@ -11,7 +11,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="烟价格查询">
+    <meta name="apple-mobile-web-app-title" content="商品查询">
     <link rel="apple-touch-icon" href="icon-192.png">
     
    <!-- AG Grid 核心样式 -->
@@ -366,8 +366,8 @@
 <div class="container">
     <header>
         <div>
-            <h1>📦烟价格查询</h1>
-            <div class="subtitle"> 扫码 | 排序 </div>
+            <h1>📦 商品查询系统</h1>
+            <div class="subtitle">扫码检测 | 键盘图标 | 数字排序 | <b style="color: #16a34a;">自动记忆文件</b></div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-primary" onclick="triggerFileSelect()">📂 导入 Excel</button>
@@ -378,7 +378,7 @@
     </header>
 
     <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="扫码或输入任意包含字符/拼音首字母组合" autofocus>
+        <input type="text" id="searchInput" class="search-input" placeholder="扫码或输入名称/拼音..." autofocus>
         <div id="statusBadge" class="status-badge">
             <span id="iconSpan"></span>
             <span id="statusText"></span>
@@ -544,40 +544,65 @@ class SmartHighlightRenderer {
 
     refresh(params) {
         const text = String(params.value || '');
-        const search = currentSearchText.toLowerCase().trim();
+        const keywords = parseKeywords(currentSearchText);
         
-        if (!search) {
+        if (keywords.length === 0) {
             this.eGui.innerHTML = this.escapeHtml(text);
             return true;
         }
 
+        // 多关键字高亮：逐个关键字查找并标记位置
+        let highlighted = this.escapeHtml(text);
         const lowerText = text.toLowerCase();
-        const directIndex = lowerText.indexOf(search);
         
-        if (directIndex !== -1) {
-            const before = text.substring(0, directIndex);
-            const match = text.substring(directIndex, directIndex + search.length);
-            const after = text.substring(directIndex + search.length);
-            this.eGui.innerHTML = `${this.escapeHtml(before)}<span class="highlight-text">${this.escapeHtml(match)}</span>${this.escapeHtml(after)}`;
-            return true;
-        }
-
-        // 拼音匹配
-        if (params.colDef.field === 'name' && params.data && params.data._pinyinFull) {
-            const pinyinFull = params.data._pinyinFull;
-            const pinyinIndex = pinyinFull.indexOf(search);
-            if (pinyinIndex !== -1) {
-                const start = pinyinIndex;
-                const end = start + search.length;
-                const before = text.substring(0, start);
-                const match = text.substring(start, end);
-                const after = text.substring(end);
-                this.eGui.innerHTML = `${this.escapeHtml(before)}<span class="highlight-text">${this.escapeHtml(match)}</span>${this.escapeHtml(after)}`;
-                return true;
+        // 收集所有需要高亮的位置（避免重叠）
+        let markPositions = [];
+        
+        for (const kw of keywords) {
+            if (!kw) continue;
+            let idx = lowerText.indexOf(kw);
+            while (idx !== -1) {
+                markPositions.push({ start: idx, end: idx + kw.length });
+                idx = lowerText.indexOf(kw, idx + kw.length);
             }
         }
 
-        this.eGui.innerHTML = this.escapeHtml(text);
+        // 如果没有直接文本匹配，尝试拼音匹配（仅商品名称列）
+        if (markPositions.length === 0 && params.colDef.field === 'name' && params.data && params.data._pinyinFull) {
+            const pinyinFull = params.data._pinyinFull;
+            for (const kw of keywords) {
+                if (!kw) continue;
+                let idx = pinyinFull.indexOf(kw);
+                while (idx !== -1) {
+                    markPositions.push({ start: idx, end: idx + kw.length });
+                    idx = pinyinFull.indexOf(kw, idx + kw.length);
+                }
+            }
+        }
+
+        // 合并重叠区间
+        markPositions.sort((a, b) => a.start - b.start);
+        let merged = [];
+        for (const pos of markPositions) {
+            if (merged.length > 0 && pos.start <= merged[merged.length - 1].end) {
+                merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, pos.end);
+            } else {
+                merged.push({ start: pos.start, end: pos.end });
+            }
+        }
+
+        // 从后往前替换，避免索引偏移
+        if (merged.length > 0) {
+            let chars = Array.from(highlighted);
+            for (let i = merged.length - 1; i >= 0; i--) {
+                const { start, end } = merged[i];
+                const matched = chars.slice(start, end).join('');
+                chars.splice(start, end - start, `<span class="highlight-text">${matched}</span>`);
+            }
+            highlighted = chars.join('');
+        }
+
+        this.eGui.innerHTML = highlighted;
         return true;
     }
 
@@ -601,7 +626,7 @@ class NumericRenderer {
 
     refresh(params) {
         const value = params.value;
-        const search = currentSearchText.toLowerCase().trim();
+        const keywords = parseKeywords(currentSearchText);
         
         if (value === null || value === undefined || value === '') {
             this.eGui.innerHTML = '';
@@ -617,23 +642,47 @@ class NumericRenderer {
             displayText = isNaN(num) ? String(value) : num.toFixed(1);
         }
         
-        if (!search) {
+        if (keywords.length === 0) {
             this.eGui.innerHTML = this.escapeHtml(displayText);
             return true;
         }
         
-        // 高亮匹配
+        // 多关键字高亮
+        let highlighted = this.escapeHtml(displayText);
         const lowerText = displayText.toLowerCase();
-        const index = lowerText.indexOf(search);
         
-        if (index !== -1) {
-            const before = displayText.substring(0, index);
-            const match = displayText.substring(index, index + search.length);
-            const after = displayText.substring(index + search.length);
-            this.eGui.innerHTML = `${this.escapeHtml(before)}<span class="highlight-text">${this.escapeHtml(match)}</span>${this.escapeHtml(after)}`;
-        } else {
-            this.eGui.innerHTML = this.escapeHtml(displayText);
+        let markPositions = [];
+        for (const kw of keywords) {
+            if (!kw) continue;
+            let idx = lowerText.indexOf(kw);
+            while (idx !== -1) {
+                markPositions.push({ start: idx, end: idx + kw.length });
+                idx = lowerText.indexOf(kw, idx + kw.length);
+            }
         }
+
+        // 合并重叠区间
+        markPositions.sort((a, b) => a.start - b.start);
+        let merged = [];
+        for (const pos of markPositions) {
+            if (merged.length > 0 && pos.start <= merged[merged.length - 1].end) {
+                merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, pos.end);
+            } else {
+                merged.push({ start: pos.start, end: pos.end });
+            }
+        }
+
+        if (merged.length > 0) {
+            let chars = Array.from(highlighted);
+            for (let i = merged.length - 1; i >= 0; i--) {
+                const { start, end } = merged[i];
+                const matched = chars.slice(start, end).join('');
+                chars.splice(start, end - start, `<span class="highlight-text">${matched}</span>`);
+            }
+            highlighted = chars.join('');
+        }
+
+        this.eGui.innerHTML = highlighted;
         return true;
     }
 
@@ -980,6 +1029,12 @@ function initGlobalScannerCapture() {
     });
 }
 
+// 解析搜索文本为多个关键字数组（支持空格、逗号、中文逗号分隔）
+function parseKeywords(text) {
+    if (!text || !text.trim()) return [];
+    return text.split(/[,，\s]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
+}
+
 function filterData(query) {
     if (!gridApi) return;
     currentSearchText = query;
@@ -993,11 +1048,15 @@ function filterData(query) {
         return;
     }
     
-    const q = query.toLowerCase();
+    const keywords = parseKeywords(query);
+    
     const filtered = allData.filter(item => {
-        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(q));
-        const hasPinyin = item.namePinyin && item.namePinyin.includes(q);
-        return hasText || hasPinyin;
+        // 任一关键字匹配即保留（OR 逻辑）
+        return keywords.some(kw => {
+            const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+            const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+            return hasText || hasPinyin;
+        });
     });
     
     gridApi.setGridOption('rowData', filtered);
