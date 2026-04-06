@@ -787,7 +787,7 @@ class TagDotRenderer {
         }
         this.eGui.innerHTML = matched.map(kw => {
             const color = TAG_COLORS[keywordColorIndex[kw]];
-            return '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + color.dot + ';box-shadow:0 1px 2px ' + color.shadow + ';flex-shrink:0;" title="' + kw + '"></span>';
+            return '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + color.bg + ';box-shadow:0 1px 2px ' + color.shadow + ';flex-shrink:0;" title="' + kw + '"></span>';
         }).join('');
         return true;
     }
