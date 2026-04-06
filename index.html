@@ -106,7 +106,8 @@
         .ag-theme-alpine { font-size: 18px; }
         .ag-theme-alpine .ag-header-cell-label { justify-content: center; }
         .ag-theme-alpine .ag-header-cell-text { font-size: 18px; font-weight: 600; }
-        .ag-theme-alpine .ag-cell { font-size: 18px; text-align: center; }
+        .ag-theme-alpine .ag-cell { font-size: 18px; }
+        .ag-theme-alpine .ag-cell-value { display: flex; align-items: center; justify-content: center; }
         
         /* 行选中高亮样式 */
         .ag-theme-alpine .ag-row-selected { background-color: #dbeafe !important; }
@@ -923,12 +924,7 @@ function parseExcelData(arrayBuffer) {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         
-        // 预过滤：在映射字段之前，排除原始行中所有值都为空的行
-        const cleanedData = jsonData.filter(row => {
-            return Object.values(row).some(v => deepTrim(v) !== '');
-        });
-        
-        return cleanedData.map(row => {
+        return jsonData.map(row => {
             const clean = {};
             Object.keys(row).forEach(k => clean[k.trim()] = row[k]);
             const get = keys => { for (let k of keys) { if (clean[k]) { const v = deepTrim(clean[k]); if (v) return v; } } return ''; };
@@ -1186,6 +1182,11 @@ function updateInputStyle() {
 
 // 重新渲染标签，将 input 插入到 cursorPosition 对应位置作为光标指示
 function renderSearchTags() {
+    // 【关键修复】在销毁标签 DOM 之前，先清理悬停状态。
+    // 因为 container.innerHTML = '' 会直接移除标签元素，导致 mouseleave 事件不触发，
+    // onTagLeave 不会被调用，row-dimmed（opacity:0.15）会残留在表格行上，看起来像"空行"。
+    onTagLeave();
+
     const container = document.getElementById('searchContainer');
     const inputEl = document.getElementById('searchInput');
     // 安全取出 input（避免被清空）
