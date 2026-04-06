@@ -1687,10 +1687,11 @@ function updateFilterStatus() {
         tagsHtml.push(`<span class="filter-tag search" id="${tagId}"><span class="tag-text">📝 搜索"${escapeHtml(currentSearchText.trim())}"</span></span>`);
     }
     
-    // AG Grid 排序状态
+    // AG Grid 排序状态（通过 getColumnState 获取）
     if (gridApi) {
-        const sortModel = gridApi.getSortModel();
-        for (const sortItem of sortModel) {
+        const columnStates = gridApi.getColumnState();
+        const sortColumns = columnStates.filter(col => col.sort);
+        for (const sortItem of sortColumns) {
             const colName = columnNameMap[sortItem.colId] || sortItem.colId;
             const sortDir = sortItem.sort === 'asc' ? '升序' : '降序';
             const tagId = `tag-sort-${sortItem.colId}`;
@@ -1813,7 +1814,11 @@ function handleTagClick(tagId) {
 // 清除单个列的筛选（带动画反馈）
 function clearColumnFilter(field) {
     if (gridApi) {
-        gridApi.destroyFilter(field);
+        const filterModel = gridApi.getFilterModel();
+        if (filterModel[field]) {
+            delete filterModel[field];
+            gridApi.setFilterModel(filterModel);
+        }
     }
     
     // 如果搜索框有内容，重新应用搜索
@@ -1879,7 +1884,7 @@ function clearAllFilters() {
         // 清除 AG Grid 筛选和排序
         if (gridApi) {
             gridApi.setFilterModel(null);
-            gridApi.setSortModel([]);
+            gridApi.applyColumnState({ defaultSort: null });
             gridApi.setGridOption('rowData', allData);
         }
         
@@ -1953,7 +1958,7 @@ function clearFilterOnly() {
         // 清除 AG Grid 列筛选和排序
         if (gridApi) {
             gridApi.setFilterModel(null);
-            gridApi.setSortModel([]);
+            gridApi.applyColumnState({ defaultSort: null });
         }
         
         // 如果搜索框有内容，重新应用搜索
