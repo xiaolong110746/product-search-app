@@ -1489,6 +1489,17 @@ function parseKeywords(text) {
 // 记录上次搜索过的关键字，用于判断是否需要重新搜索
 let lastSearchedKeywordsStr = '';
 
+// 获取商品首次匹配的标签索引（用于按标签顺序排序）
+function getFirstMatchKeywordIndex(item, keywords) {
+    for (let i = 0; i < keywords.length; i++) {
+        const kw = keywords[i];
+        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+        const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+        if (hasText || hasPinyin) return i;
+    }
+    return keywords.length; // 兜底
+}
+
 function filterData(query) {
     if (!gridApi) return;
     currentSearchText = query;
@@ -1518,6 +1529,13 @@ function filterData(query) {
             const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
             return hasText || hasPinyin;
         });
+    });
+    
+    // 按标签顺序排列：先按商品首次匹配的标签索引排序，同标签内保持原顺序
+    filtered.sort((a, b) => {
+        const aIdx = getFirstMatchKeywordIndex(a, keywords);
+        const bIdx = getFirstMatchKeywordIndex(b, keywords);
+        return aIdx - bIdx;
     });
     
     // 统计每个关键字各自的匹配数量（用于标签灰色显示）
