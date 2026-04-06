@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>卷烟查询</title>
+    <title>商品查询系统 - 自动记忆版</title>
     
     <!-- PWA 配置 -->
     <link rel="manifest" href="manifest.json">
@@ -11,7 +11,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="卷烟查询">
+    <meta name="apple-mobile-web-app-title" content="商品查询">
     <link rel="apple-touch-icon" href="icon-192.png">
     
    <!-- AG Grid 核心样式 -->
@@ -119,6 +119,8 @@
         .ag-theme-alpine .ag-header-cell .ag-header-cell-menu-button { opacity: 1; }
         .ag-theme-alpine .ag-header-cell .ag-sort-indicator-container { opacity: 1; }
         .ag-theme-alpine .ag-header-cell .ag-filter-indicator-container { opacity: 1; }
+        /* 排序箭头默认显示（未排序时显示双向箭头） */
+        .ag-theme-alpine .ag-header-cell .ag-sort-indicator-container .ag-sort-none-icon { display: inline-flex !important; }
         
         /* 行选中高亮样式 */
         .ag-theme-alpine .ag-row-selected { background-color: #dbeafe !important; }
@@ -403,8 +405,8 @@
 <div class="container">
     <header>
         <div>
-            <h1>📦卷烟查询</h1>
-            <div class="subtitle">支持：扫码 | 列表关键字多轮筛选 | 表头筛选</div>
+            <h1>📦 商品查询系统</h1>
+            <div class="subtitle">扫码检测 | 键盘图标 | 数字排序 | <b style="color: #16a34a;">自动记忆文件</b></div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-primary" onclick="triggerFileSelect()">📂 导入 Excel</button>
