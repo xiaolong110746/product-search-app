@@ -382,44 +382,6 @@
             width: 16px;
             text-align: center;
         }
-        /* ===== 标签颜色系统 ===== */
-        /* 无匹配标签 - 灰色 */
-        .search-tag[data-matched="false"] {
-            background: linear-gradient(135deg, #f1f5f9, #e2e8f0) !important;
-            color: #94a3b8 !important;
-            box-shadow: 0 1px 3px rgba(100,116,139,0.1) !important;
-        }
-        .search-tag[data-matched="false"]:hover {
-            box-shadow: 0 2px 6px rgba(100,116,139,0.2) !important;
-        }
-        .search-tag[data-matched="false"] .search-tag-close {
-            color: #94a3b8 !important;
-        }
-        .search-tag[data-matched="false"] .search-tag-close:hover {
-            background-color: rgba(148,163,184,0.15) !important;
-        }
-
-        /* 表格行左侧颜色条 */
-        .ag-theme-alpine .ag-row.row-has-colors {
-            position: relative;
-        }
-        .ag-theme-alpine .ag-row.row-has-colors::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 4px;
-            background: var(--row-color-bar);
-            z-index: 5;
-            pointer-events: none;
-        }
-
-        /* 标签悬停联动 - 行高亮/变暗 */
-        .ag-theme-alpine .ag-row.row-dimmed {
-            opacity: 0.15 !important;
-        }
-        .ag-theme-alpine .ag-row.row-highlighted {
-            transition: opacity 0.15s ease, background-color 0.2s ease;
-        }
     </style>
 </head>
 <body>
@@ -509,22 +471,6 @@ let lastFilteredCount = 0; // 记录上次筛选结果数量
 
 // 存储键名
 const STORAGE_KEY = 'product_query_excel_data';
-
-// ==========================================
-// 标签颜色系统
-// ==========================================
-const TAG_PALETTE = [
-    { main: '#3b82f6', bg: '#dbeafe', bgEnd: '#bfdbfe', text: '#1e40af' },
-    { main: '#10b981', bg: '#dcfce7', bgEnd: '#bbf7d0', text: '#166534' },
-    { main: '#f59e0b', bg: '#fef3c7', bgEnd: '#fde68a', text: '#92400e' },
-    { main: '#8b5cf6', bg: '#ede9fe', bgEnd: '#ddd6fe', text: '#5b21b6' },
-    { main: '#ec4899', bg: '#fce7f3', bgEnd: '#fbcfe8', text: '#9d174d' },
-    { main: '#06b6d4', bg: '#cffafe', bgEnd: '#a5f3fc', text: '#155e75' },
-    { main: '#f97316', bg: '#ffedd5', bgEnd: '#fed7aa', text: '#9a3412' },
-    { main: '#6366f1', bg: '#e0e7ff', bgEnd: '#c7d2fe', text: '#3730a3' },
-];
-let tagColorMap = {};   // keyword -> colorIndex（-1 = 无匹配/灰色）
-let nextColorIndex = 0;
 
 // ==========================================
 // 存储函数 - 使用 localStorage
@@ -799,28 +745,6 @@ const gridOptions = {
     defaultColDef: { resizable: true, sortable: true },
     rowSelection: 'single',
     suppressRowClickSelection: false,
-    getRowClass: function(params) {
-        if (!params.data || !params.data._matchedTags || params.data._matchedTags.length === 0) return '';
-        return 'row-has-colors';
-    },
-    getRowStyle: function(params) {
-        if (!params.data || !params.data._matchedTags || params.data._matchedTags.length === 0) return null;
-        const matched = params.data._matchedTags;
-        const colors = matched.map(kw => {
-            if (!kw) return '#94a3b8';
-            const ci = tagColorMap[kw];
-            return (ci !== undefined && ci >= 0) ? TAG_PALETTE[ci % TAG_PALETTE.length].main : '#94a3b8';
-        });
-        if (colors.length === 1) {
-            return { '--row-color-bar': colors[0] };
-        }
-        const stops = colors.map((c, i) => {
-            const p1 = Math.round((i / (colors.length - 1)) * 100);
-            const p2 = i === colors.length - 1 ? 100 : Math.round(((i + 1) / (colors.length - 1)) * 100);
-            return `${c} ${p1}%, ${c} ${p2}%`;
-        }).join(', ');
-        return { '--row-color-bar': `linear-gradient(to bottom, ${stops})` };
-    },
     onFilterChanged: function() {
         updateFilterStatus();
         // 同步更新页脚的记录数
@@ -898,14 +822,7 @@ const gridOptions = {
 // ==========================================
 // 数据处理函数
 // ==========================================
-// 增强版 trim：清除普通空格、不间断空格(\u00A0)、零宽字符等所有不可见字符
-function deepTrim(s) {
-    if (s === null || s === undefined) return '';
-    return String(s).replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, '').trim();
-}
-
 function processPinyin(text) {
-    text = deepTrim(text);
     if (!text) return '';
     if (typeof pinyinPro !== 'undefined') {
         try {
@@ -927,7 +844,7 @@ function parseExcelData(arrayBuffer) {
         return jsonData.map(row => {
             const clean = {};
             Object.keys(row).forEach(k => clean[k.trim()] = row[k]);
-            const get = keys => { for (let k of keys) { if (clean[k]) { const v = deepTrim(clean[k]); if (v) return v; } } return ''; };
+            const get = keys => { for (let k of keys) if (clean[k]) return clean[k]; return ''; };
             const getNum = keys => {
                 const val = get(keys);
                 if (val === '' || val === null || val === undefined) return null;
@@ -946,11 +863,7 @@ function parseExcelData(arrayBuffer) {
                 barcodePack: get(['条码（包）', '包码', '条码(包)', '包条码', '包的条码']),
                 remark: get(['备注', '说明', '注释', '标记'])
             };
-        }).filter(item => {
-            // 过滤掉所有展示字段都为空的行（用 deepTrim 清除不可见字符后再判断）
-            const displayValues = [item.name, item.barcodeStrip, item.barcodePack, item.cost, item.priceStrip, item.suggestStrip, item.pricePack, item.suggestPack, item.remark];
-            return displayValues.some(v => v !== null && v !== undefined && deepTrim(v) !== '');
-        });
+        }).filter(item => item.name || item.barcodeStrip || item.barcodePack);
     } catch (e) {
         console.error('解析Excel失败:', e);
         return [];
@@ -995,11 +908,6 @@ function handleFileUpload(event) {
     renderSearchTags();
     input.value = '';
     currentSearchText = '';
-    // 清除标签颜色映射
-    tagColorMap = {};
-    nextColorIndex = 0;
-    // 清除行匹配信息
-    allData.forEach(item => { item._matchedTags = []; });
     if (gridApi) {
         gridApi.setFilterModel(null);
     }
@@ -1129,7 +1037,6 @@ function clearAllKeywords() {
 function createTagElement(kw, idx) {
     const tag = document.createElement('span');
     tag.className = 'search-tag';
-    tag.setAttribute('data-tag-index', idx);
     const textSpan = document.createElement('span');
     textSpan.className = 'search-tag-text';
     textSpan.textContent = kw;
@@ -1140,9 +1047,6 @@ function createTagElement(kw, idx) {
         e.stopPropagation();
         removeKeyword(idx);
     };
-    // 悬停联动：高亮该标签对应的表格行
-    tag.addEventListener('mouseenter', function() { onTagHover(idx); });
-    tag.addEventListener('mouseleave', function() { onTagLeave(); });
     tag.appendChild(textSpan);
     tag.appendChild(closeBtn);
     return tag;
@@ -1182,11 +1086,6 @@ function updateInputStyle() {
 
 // 重新渲染标签，将 input 插入到 cursorPosition 对应位置作为光标指示
 function renderSearchTags() {
-    // 【关键修复】在销毁标签 DOM 之前，先清理悬停状态。
-    // 因为 container.innerHTML = '' 会直接移除标签元素，导致 mouseleave 事件不触发，
-    // onTagLeave 不会被调用，row-dimmed（opacity:0.15）会残留在表格行上，看起来像"空行"。
-    onTagLeave();
-
     const container = document.getElementById('searchContainer');
     const inputEl = document.getElementById('searchInput');
     // 安全取出 input（避免被清空）
@@ -1456,17 +1355,11 @@ function filterData(query) {
     
     if (!query.trim()) {
         lastSearchedKeywordsStr = '';
-        // 清除行匹配信息
-        allData.forEach(item => { item._matchedTags = []; });
         gridApi.setGridOption('rowData', allData);
         updateCount(allData.length);
         lastFilteredCount = allData.length;
         hideStatus();
         updateFilterStatus();
-        // 清除标签颜色映射
-        tagColorMap = {};
-        nextColorIndex = 0;
-        updateTagColors();
         return;
     }
     
@@ -1477,48 +1370,14 @@ function filterData(query) {
     if (keywordsStr === lastSearchedKeywordsStr) return;
     lastSearchedKeywordsStr = keywordsStr;
     
-    // 计算每个关键字的匹配数量
-    const keywordMatchCount = {};
-    keywords.forEach(kw => { keywordMatchCount[kw] = 0; });
-    
-    // 清除所有行的旧匹配信息
-    allData.forEach(item => { item._matchedTags = []; });
-    
-    // 只检查展示字段的名称，排除内部属性（_matchedTags、_pinyinFull、namePinyin）
-    const displayFields = ['name', 'cost', 'priceStrip', 'suggestStrip', 'pricePack', 'suggestPack', 'barcodeStrip', 'barcodePack', 'remark'];
-    
     const filtered = allData.filter(item => {
-        // 遍历所有关键字，记录每个匹配的关键字（不用 some，避免短路导致只记录第一个）
-        let anyMatch = false;
-        for (const kw of keywords) {
-            if (!kw) continue;
-            // 只在展示字段中搜索文本，避免匹配到拼音等内部属性
-            const hasText = displayFields.some(field => {
-                const val = item[field];
-                return val !== null && val !== undefined && String(val).toLowerCase().includes(kw);
-            });
+        // 任一关键字匹配即保留（OR 逻辑）
+        return keywords.some(kw => {
+            const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
             const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
-            if (hasText || hasPinyin) {
-                item._matchedTags.push(kw); // 存储关键字字符串，避免索引错位
-                keywordMatchCount[kw]++;
-                anyMatch = true;
-            }
-        }
-        return anyMatch;
+            return hasText || hasPinyin;
+        });
     });
-    
-    // 分配颜色：命中的标签分配调色板颜色，未命中的标为灰色
-    keywords.forEach(kw => {
-        if (tagColorMap[kw] === undefined) {
-            if (keywordMatchCount[kw] > 0) {
-                tagColorMap[kw] = nextColorIndex++;
-            } else {
-                tagColorMap[kw] = -1; // 灰色
-            }
-        }
-    });
-    // 更新标签视觉颜色
-    updateTagColors();
     
     gridApi.setGridOption('rowData', filtered);
     lastFilteredCount = filtered.length;
@@ -1546,68 +1405,6 @@ function updateFooterCount() {
     }
 }
 
-// ==========================================
-// 标签颜色更新 - 根据匹配状态给标签上色
-// ==========================================
-function updateTagColors() {
-    currentKeywords.forEach((kw, idx) => {
-        const tagEl = document.querySelector(`[data-tag-index="${idx}"]`);
-        if (!tagEl) return;
-        
-        const ci = tagColorMap[kw];
-        if (ci === undefined || ci === -1) {
-            // 无匹配 - 灰色（由 CSS data-matched="false" 控制）
-            tagEl.setAttribute('data-matched', 'false');
-            tagEl.style.background = '';
-            tagEl.style.color = '';
-            tagEl.style.boxShadow = '';
-        } else {
-            // 有匹配 - 使用调色板颜色
-            const palette = TAG_PALETTE[ci % TAG_PALETTE.length];
-            tagEl.setAttribute('data-matched', 'true');
-            tagEl.style.background = `linear-gradient(135deg, ${palette.bg}, ${palette.bgEnd})`;
-            tagEl.style.color = palette.text;
-            tagEl.style.boxShadow = `0 1px 3px ${palette.main}26`;
-        }
-    });
-}
-
-// ==========================================
-// 标签悬停联动 - 高亮对应行、变暗其他行
-// ==========================================
-function onTagHover(tagIndex) {
-    if (!gridApi) return;
-    const hoveredKw = currentKeywords[tagIndex];
-    const ci = tagColorMap[hoveredKw];
-    const palette = (ci !== undefined && ci >= 0) ? TAG_PALETTE[ci % TAG_PALETTE.length] : null;
-    
-    gridApi.forEachNodeAfterFilter(node => {
-        const el = node.rowElement;
-        if (!el) return;
-        if (node.data && node.data._matchedTags && node.data._matchedTags.includes(hoveredKw)) {
-            el.classList.add('row-highlighted');
-            el.classList.remove('row-dimmed');
-            if (palette) {
-                el.style.backgroundColor = `${palette.main}15`;
-            }
-        } else {
-            el.classList.add('row-dimmed');
-            el.classList.remove('row-highlighted');
-            el.style.backgroundColor = '';
-        }
-    });
-}
-
-function onTagLeave() {
-    if (!gridApi) return;
-    gridApi.forEachNodeAfterFilter(node => {
-        const el = node.rowElement;
-        if (!el) return;
-        el.classList.remove('row-highlighted', 'row-dimmed');
-        el.style.backgroundColor = '';
-    });
-}
-
 function clearSearch() {
     if (notFoundTimer) {
         clearTimeout(notFoundTimer);
@@ -1621,11 +1418,6 @@ function clearSearch() {
     currentSearchText = '';
     lastSearchedKeywordsStr = '';
     lastFilteredCount = allData.length;
-    // 清除标签颜色映射
-    tagColorMap = {};
-    nextColorIndex = 0;
-    // 清除行匹配信息
-    allData.forEach(item => { item._matchedTags = []; });
     if (gridApi) gridApi.setGridOption('rowData', allData);
     updateCount(allData.length);
     input.focus();
@@ -1877,11 +1669,6 @@ function clearAllFilters() {
         input.value = '';
         currentSearchText = '';
         lastSearchedKeywordsStr = '';
-        // 清除标签颜色映射
-        tagColorMap = {};
-        nextColorIndex = 0;
-        // 清除行匹配信息
-        allData.forEach(item => { item._matchedTags = []; });
         
         // 清除 AG Grid 筛选
         if (gridApi) {
@@ -1927,11 +1714,6 @@ function executeClearSearch(skipToast) {
     input.value = '';
     currentSearchText = '';
     lastSearchedKeywordsStr = '';
-    // 清除标签颜色映射
-    tagColorMap = {};
-    nextColorIndex = 0;
-    // 清除行匹配信息
-    allData.forEach(item => { item._matchedTags = []; });
     
     // 恢复到全部数据，但保留列筛选
     if (gridApi) {
@@ -2109,9 +1891,6 @@ function clearSavedData() {
     renderSearchTags();
     input.value = '';
     currentSearchText = '';
-    // 清除标签颜色映射
-    tagColorMap = {};
-    nextColorIndex = 0;
     
     // 清除 AG Grid 筛选
     if (gridApi) {
