@@ -228,6 +228,11 @@
             color: #166534;
         }
         
+        .filter-status .filter-tag.sort {
+            background-color: #e0e7ff;
+            color: #3730a3;
+        }
+        
         /* 悬停效果 */
         .filter-status .filter-tag:hover {
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
@@ -844,6 +849,9 @@ const gridOptions = {
         updateFilterStatus();
         // 同步更新页脚的记录数
         updateFooterCount();
+    },
+    onSortChanged: function() {
+        updateFilterStatus();
     },
     localeText: {
         noRowsToShow: '暂无数据',
@@ -1679,6 +1687,23 @@ function updateFilterStatus() {
         tagsHtml.push(`<span class="filter-tag search" id="${tagId}"><span class="tag-text">📝 搜索"${escapeHtml(currentSearchText.trim())}"</span></span>`);
     }
     
+    // AG Grid 排序状态
+    if (gridApi) {
+        const columnApi = gridApi.getColumnApi();
+        const sortModel = gridApi.getSortModel();
+        for (const sortItem of sortModel) {
+            const colName = columnNameMap[sortItem.colId] || sortItem.colId;
+            const sortDir = sortItem.sort === 'asc' ? '升序' : '降序';
+            const tagId = `tag-sort-${sortItem.colId}`;
+            currentFilterTags.push({
+                id: tagId,
+                type: 'sort',
+                data: sortItem.colId
+            });
+            tagsHtml.push(`<span class="filter-tag sort" id="${tagId}"><span class="tag-text">⬆⬇ ${colName} ${sortDir}</span></span>`);
+        }
+    }
+
     // AG Grid 列筛选
     if (gridApi) {
         const filterModel = gridApi.getFilterModel();
@@ -1777,6 +1802,11 @@ function handleTagClick(tagId) {
         } else if (tagInfo.type === 'column') {
             // 删除列筛选标签
             clearColumnFilter(tagInfo.data);
+        } else if (tagInfo.type === 'sort') {
+            // 删除排序标签：取消该列排序
+            if (gridApi) gridApi.applyColumnState({ sort: [{ colId: tagInfo.data, sort: null }] });
+            updateFilterStatus();
+            showToast('✅ 已取消排序');
         }
     }, 350);
 }
@@ -1847,14 +1877,10 @@ function clearAllFilters() {
         currentSearchText = '';
         lastSearchedKeywordsStr = '';
         
-        // 清除 AG Grid 筛选
+        // 清除 AG Grid 筛选和排序
         if (gridApi) {
-            const filterModel = gridApi.getFilterModel();
-            if (Object.keys(filterModel).length > 0) {
-                Object.keys(filterModel).forEach(field => {
-                    gridApi.destroyFilter(field);
-                });
-            }
+            gridApi.setFilterModel(null);
+            gridApi.setSortModel([]);
             gridApi.setGridOption('rowData', allData);
         }
         
@@ -1912,9 +1938,9 @@ function executeClearSearch(skipToast) {
 }
 
 function clearFilterOnly() {
-    // 获取所有列筛选标签ID
+    // 获取所有列筛选和排序标签ID
     const columnTagIds = currentFilterTags
-        .filter(t => t.type === 'column')
+        .filter(t => t.type === 'column' || t.type === 'sort')
         .map(t => t.id);
     
     if (columnTagIds.length === 0) {
@@ -1925,14 +1951,10 @@ function clearFilterOnly() {
     
     // 先播放动画
     animateAllTagsRemove(columnTagIds).then(() => {
-        // 清除 AG Grid 列筛选
+        // 清除 AG Grid 列筛选和排序
         if (gridApi) {
-            const filterModel = gridApi.getFilterModel();
-            if (Object.keys(filterModel).length > 0) {
-                Object.keys(filterModel).forEach(field => {
-                    gridApi.destroyFilter(field);
-                });
-            }
+            gridApi.setFilterModel(null);
+            gridApi.setSortModel([]);
         }
         
         // 如果搜索框有内容，重新应用搜索
