@@ -1468,17 +1468,27 @@ function filterData(query) {
     // 清除所有行的旧匹配信息
     allData.forEach(item => { item._matchedTags = []; });
     
+    // 只检查展示字段的名称，排除内部属性（_matchedTags、_pinyinFull、namePinyin）
+    const displayFields = ['name', 'cost', 'priceStrip', 'suggestStrip', 'pricePack', 'suggestPack', 'barcodeStrip', 'barcodePack', 'remark'];
+    
     const filtered = allData.filter(item => {
-        // 任一关键字匹配即保留（OR 逻辑），同时记录哪些关键字匹配了
-        return keywords.some((kw) => {
-            const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+        // 遍历所有关键字，记录每个匹配的关键字（不用 some，避免短路导致只记录第一个）
+        let anyMatch = false;
+        for (const kw of keywords) {
+            if (!kw) continue;
+            // 只在展示字段中搜索文本，避免匹配到拼音等内部属性
+            const hasText = displayFields.some(field => {
+                const val = item[field];
+                return val !== null && val !== undefined && String(val).toLowerCase().includes(kw);
+            });
             const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
             if (hasText || hasPinyin) {
                 item._matchedTags.push(kw); // 存储关键字字符串，避免索引错位
                 keywordMatchCount[kw]++;
+                anyMatch = true;
             }
-            return hasText || hasPinyin;
-        });
+        }
+        return anyMatch;
     });
     
     // 分配颜色：命中的标签分配调色板颜色，未命中的标为灰色
