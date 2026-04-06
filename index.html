@@ -1689,7 +1689,6 @@ function updateFilterStatus() {
     
     // AG Grid 排序状态
     if (gridApi) {
-        const columnApi = gridApi.getColumnApi();
         const sortModel = gridApi.getSortModel();
         for (const sortItem of sortModel) {
             const colName = columnNameMap[sortItem.colId] || sortItem.colId;
