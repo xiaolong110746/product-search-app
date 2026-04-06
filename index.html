@@ -920,7 +920,7 @@ function parseExcelData(arrayBuffer) {
         return jsonData.map(row => {
             const clean = {};
             Object.keys(row).forEach(k => clean[k.trim()] = row[k]);
-            const get = keys => { for (let k of keys) if (clean[k]) return clean[k]; return ''; };
+            const get = keys => { for (let k of keys) { if (clean[k]) { const v = String(clean[k]).trim(); if (v) return v; } } return ''; };
             const getNum = keys => {
                 const val = get(keys);
                 if (val === '' || val === null || val === undefined) return null;
@@ -939,7 +939,11 @@ function parseExcelData(arrayBuffer) {
                 barcodePack: get(['条码（包）', '包码', '条码(包)', '包条码', '包的条码']),
                 remark: get(['备注', '说明', '注释', '标记'])
             };
-        }).filter(item => item.name || item.barcodeStrip || item.barcodePack);
+        }).filter(item => {
+            // 过滤掉所有展示字段都为空的行（排除内部属性）
+            const displayValues = [item.name, item.barcodeStrip, item.barcodePack, item.cost, item.priceStrip, item.suggestStrip, item.pricePack, item.suggestPack, item.remark];
+            return displayValues.some(v => v !== null && v !== undefined && String(v).trim() !== '');
+        });
     } catch (e) {
         console.error('解析Excel失败:', e);
         return [];
