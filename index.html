@@ -484,14 +484,14 @@ let lastFilteredCount = 0; // 记录上次筛选结果数量
 let hoveredKeyword = null; // 当前鼠标悬停的标签关键字
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
 const TAG_COLORS = [
-    { bg: 'linear-gradient(135deg, #fef2f2, #fecaca)', text: '#dc2626', shadow: 'rgba(239,68,68,0.15)', dot: '#ef4444' },
-    { bg: 'linear-gradient(135deg, #eff6ff, #bfdbfe)', text: '#2563eb', shadow: 'rgba(59,130,246,0.15)', dot: '#3b82f6' },
-    { bg: 'linear-gradient(135deg, #f0fdf4, #bbf7d0)', text: '#16a34a', shadow: 'rgba(34,197,94,0.15)', dot: '#22c55e' },
-    { bg: 'linear-gradient(135deg, #fefce8, #fef08a)', text: '#ca8a04', shadow: 'rgba(234,179,8,0.15)', dot: '#eab308' },
-    { bg: 'linear-gradient(135deg, #faf5ff, #e9d5ff)', text: '#9333ea', shadow: 'rgba(168,85,247,0.15)', dot: '#a855f7' },
-    { bg: 'linear-gradient(135deg, #fff7ed, #fed7aa)', text: '#ea580c', shadow: 'rgba(249,115,22,0.15)', dot: '#f97316' },
-    { bg: 'linear-gradient(135deg, #ecfeff, #a5f3fc)', text: '#0891b2', shadow: 'rgba(6,182,212,0.15)', dot: '#06b6d4' },
-    { bg: 'linear-gradient(135deg, #fdf2f8, #fbcfe8)', text: '#db2777', shadow: 'rgba(236,72,153,0.15)', dot: '#ec4899' },
+    { bg: 'linear-gradient(135deg, #fecaca, #fca5a5)', text: '#dc2626', shadow: 'rgba(239,68,68,0.25)', dot: '#ef4444' },
+    { bg: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', text: '#2563eb', shadow: 'rgba(59,130,246,0.25)', dot: '#3b82f6' },
+    { bg: 'linear-gradient(135deg, #bbf7d0, #86efac)', text: '#16a34a', shadow: 'rgba(34,197,94,0.25)', dot: '#22c55e' },
+    { bg: 'linear-gradient(135deg, #fef08a, #fde047)', text: '#ca8a04', shadow: 'rgba(234,179,8,0.25)', dot: '#eab308' },
+    { bg: 'linear-gradient(135deg, #e9d5ff, #d8b4fe)', text: '#9333ea', shadow: 'rgba(168,85,247,0.25)', dot: '#a855f7' },
+    { bg: 'linear-gradient(135deg, #fed7aa, #fdba74)', text: '#ea580c', shadow: 'rgba(249,115,22,0.25)', dot: '#f97316' },
+    { bg: 'linear-gradient(135deg, #a5f3fc, #67e8f9)', text: '#0891b2', shadow: 'rgba(6,182,212,0.25)', dot: '#06b6d4' },
+    { bg: 'linear-gradient(135deg, #fbcfe8, #f9a8d4)', text: '#db2777', shadow: 'rgba(236,72,153,0.25)', dot: '#ec4899' },
 ];
 const keywordColorIndex = {}; // keyword -> color index（持久映射，保证同一关键字始终同一颜色）
 let nextColorIdx = 0;
@@ -787,7 +787,7 @@ class TagDotRenderer {
         }
         this.eGui.innerHTML = matched.map(kw => {
             const color = TAG_COLORS[keywordColorIndex[kw]];
-            return '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + color.bg + ';box-shadow:0 1px 2px ' + color.shadow + ';flex-shrink:0;" title="' + kw + '"></span>';
+            return '<span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:' + color.bg + ';box-shadow:0 1px 3px ' + color.shadow + ';flex-shrink:0;" title="' + kw + '"></span>';
         }).join('');
         return true;
     }
