@@ -898,7 +898,14 @@ const gridOptions = {
 // ==========================================
 // 数据处理函数
 // ==========================================
+// 增强版 trim：清除普通空格、不间断空格(\u00A0)、零宽字符等所有不可见字符
+function deepTrim(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, '').trim();
+}
+
 function processPinyin(text) {
+    text = deepTrim(text);
     if (!text) return '';
     if (typeof pinyinPro !== 'undefined') {
         try {
@@ -920,7 +927,7 @@ function parseExcelData(arrayBuffer) {
         return jsonData.map(row => {
             const clean = {};
             Object.keys(row).forEach(k => clean[k.trim()] = row[k]);
-            const get = keys => { for (let k of keys) { if (clean[k]) { const v = String(clean[k]).trim(); if (v) return v; } } return ''; };
+            const get = keys => { for (let k of keys) { if (clean[k]) { const v = deepTrim(clean[k]); if (v) return v; } } return ''; };
             const getNum = keys => {
                 const val = get(keys);
                 if (val === '' || val === null || val === undefined) return null;
@@ -940,9 +947,9 @@ function parseExcelData(arrayBuffer) {
                 remark: get(['备注', '说明', '注释', '标记'])
             };
         }).filter(item => {
-            // 过滤掉所有展示字段都为空的行（排除内部属性）
+            // 过滤掉所有展示字段都为空的行（用 deepTrim 清除不可见字符后再判断）
             const displayValues = [item.name, item.barcodeStrip, item.barcodePack, item.cost, item.priceStrip, item.suggestStrip, item.pricePack, item.suggestPack, item.remark];
-            return displayValues.some(v => v !== null && v !== undefined && String(v).trim() !== '');
+            return displayValues.some(v => v !== null && v !== undefined && deepTrim(v) !== '');
         });
     } catch (e) {
         console.error('解析Excel失败:', e);
