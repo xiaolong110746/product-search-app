@@ -106,8 +106,7 @@
         .ag-theme-alpine { font-size: 18px; }
         .ag-theme-alpine .ag-header-cell-label { justify-content: center; }
         .ag-theme-alpine .ag-header-cell-text { font-size: 18px; font-weight: 600; }
-        .ag-theme-alpine .ag-cell { font-size: 18px; }
-        .ag-theme-alpine .ag-cell-value { display: flex; align-items: center; justify-content: center; }
+        .ag-theme-alpine .ag-cell { font-size: 18px; text-align: center; }
         
         /* 行选中高亮样式 */
         .ag-theme-alpine .ag-row-selected { background-color: #dbeafe !important; }
@@ -924,7 +923,12 @@ function parseExcelData(arrayBuffer) {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
         
-        return jsonData.map(row => {
+        // 预过滤：在映射字段之前，排除原始行中所有值都为空的行
+        const cleanedData = jsonData.filter(row => {
+            return Object.values(row).some(v => deepTrim(v) !== '');
+        });
+        
+        return cleanedData.map(row => {
             const clean = {};
             Object.keys(row).forEach(k => clean[k.trim()] = row[k]);
             const get = keys => { for (let k of keys) { if (clean[k]) { const v = deepTrim(clean[k]); if (v) return v; } } return ''; };
