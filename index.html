@@ -59,6 +59,8 @@
             transition: all 0.15s; margin: 0 3px;
         }
         .search-tag:hover { box-shadow: 0 2px 6px var(--tag-shadow, rgba(37,99,235,0.25)); transform: scale(1.05); }
+        .search-tag.tag-no-match { opacity: 0.55; }
+        .search-tag.tag-no-match .search-tag-text { text-decoration: line-through; }
         .search-tag-text { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
         .search-tag-close {
             display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
@@ -481,6 +483,7 @@ let lastFilteredCount = 0; // 记录上次筛选结果数量
 // 标签颜色映射系统
 // ==========================================
 let hoveredKeyword = null; // 当前鼠标悬停的标签关键字
+let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
 const TAG_COLORS = [
     { bg: 'linear-gradient(135deg, #fef2f2, #fecaca)', text: '#dc2626', shadow: 'rgba(239,68,68,0.15)', dot: '#ef4444' },
     { bg: 'linear-gradient(135deg, #eff6ff, #bfdbfe)', text: '#2563eb', shadow: 'rgba(59,130,246,0.15)', dot: '#3b82f6' },
@@ -500,6 +503,11 @@ function getTagColor(keyword) {
         nextColorIdx++;
     }
     return TAG_COLORS[keywordColorIndex[keyword]];
+}
+
+// 判断关键字在当前数据中是否有匹配结果
+function keywordHasMatch(kw) {
+    return (keywordMatchCount[kw] || 0) > 0;
 }
 
 // 存储键名
@@ -1114,21 +1122,56 @@ function clearAllKeywords() {
     triggerSearch();
 }
 
+// 根据搜索结果刷新所有标签的颜色样式（无匹配结果的标签变灰）
+function updateTagColors() {
+    document.querySelectorAll('.search-tag').forEach(tagEl => {
+        const closeBtn = tagEl.querySelector('.search-tag-close');
+        if (!closeBtn) return;
+        const idx = closeBtn.dataset.keywordIdx;
+        if (idx === undefined || !currentKeywords[idx]) return;
+        const kw = currentKeywords[idx];
+        const hasMatch = keywordHasMatch(kw);
+        if (hasMatch) {
+            // 有匹配：使用该关键字分配的颜色
+            const color = getTagColor(kw);
+            tagEl.style.setProperty('--tag-bg', color.bg);
+            tagEl.style.setProperty('--tag-text', color.text);
+            tagEl.style.setProperty('--tag-shadow', color.shadow);
+            tagEl.classList.remove('tag-no-match');
+        } else {
+            // 无匹配：灰色
+            tagEl.style.setProperty('--tag-bg', 'linear-gradient(135deg, #f3f4f6, #e5e7eb)');
+            tagEl.style.setProperty('--tag-text', '#9ca3af');
+            tagEl.style.setProperty('--tag-shadow', 'rgba(156,163,175,0.1)');
+            tagEl.classList.add('tag-no-match');
+        }
+    });
+}
+
 // 创建单个标签 DOM 元素
 function createTagElement(kw, idx) {
     const tag = document.createElement('span');
     tag.className = 'search-tag';
-    // 为每个标签分配独立颜色
-    const color = getTagColor(kw);
-    tag.style.setProperty('--tag-bg', color.bg);
-    tag.style.setProperty('--tag-text', color.text);
-    tag.style.setProperty('--tag-shadow', color.shadow);
+    // 根据是否有匹配结果决定颜色
+    const hasMatch = keywordHasMatch(kw);
+    if (hasMatch) {
+        const color = getTagColor(kw);
+        tag.style.setProperty('--tag-bg', color.bg);
+        tag.style.setProperty('--tag-text', color.text);
+        tag.style.setProperty('--tag-shadow', color.shadow);
+    } else {
+        tag.style.setProperty('--tag-bg', 'linear-gradient(135deg, #f3f4f6, #e5e7eb)');
+        tag.style.setProperty('--tag-text', '#9ca3af');
+        tag.style.setProperty('--tag-shadow', 'rgba(156,163,175,0.1)');
+        tag.classList.add('tag-no-match');
+    }
     const textSpan = document.createElement('span');
     textSpan.className = 'search-tag-text';
     textSpan.textContent = kw;
     const closeBtn = document.createElement('span');
     closeBtn.className = 'search-tag-close';
     closeBtn.textContent = '×';
+    closeBtn.dataset.keywordIdx = idx; // 存储索引，供 updateTagColors 使用
     closeBtn.onclick = function(e) {
         e.stopPropagation();
         removeKeyword(idx);
@@ -1450,8 +1493,9 @@ function filterData(query) {
     
     if (!query.trim()) {
         lastSearchedKeywordsStr = '';
+        keywordMatchCount = {};
+        updateTagColors();
         gridApi.setGridOption('rowData', allData);
-        updateCount(allData.length);
         lastFilteredCount = allData.length;
         hideStatus();
         updateFilterStatus();
@@ -1474,9 +1518,19 @@ function filterData(query) {
         });
     });
     
+    // 统计每个关键字各自的匹配数量（用于标签灰色显示）
+    keywordMatchCount = {};
+    for (const kw of keywords) {
+        keywordMatchCount[kw] = allData.filter(item => {
+            const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+            const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+            return hasText || hasPinyin;
+        }).length;
+    }
+    // 刷新标签样式（有匹配的保持彩色，无匹配的变灰）
+    updateTagColors();
+
     gridApi.setGridOption('rowData', filtered);
-    lastFilteredCount = filtered.length;
-    updateCount(filtered.length);
     
     // 实时显示找到的结果数量或未找到提示
     if (filtered.length > 0) {
