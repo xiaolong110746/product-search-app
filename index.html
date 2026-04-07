@@ -1013,6 +1013,9 @@ function handleFileUpload(event) {
     currentSearchText = '';
     if (gridApi) {
         gridApi.setFilterModel(null);
+        const colState = gridApi.getColumnState();
+        colState.forEach(col => { if (col.sort) col.sort = null; });
+        gridApi.applyColumnState({ state: colState });
     }
     // 隐藏筛选状态提示区
     document.getElementById('filterStatus').classList.remove('visible');
@@ -2112,9 +2115,12 @@ function clearSavedData() {
     input.value = '';
     currentSearchText = '';
     
-    // 清除 AG Grid 筛选
+    // 清除 AG Grid 筛选和排序
     if (gridApi) {
         gridApi.setFilterModel(null);
+        const colState = gridApi.getColumnState();
+        colState.forEach(col => { if (col.sort) col.sort = null; });
+        gridApi.applyColumnState({ state: colState });
     }
     
     // 清空表格数据
