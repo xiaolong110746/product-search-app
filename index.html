@@ -543,7 +543,6 @@ function scrollToFirstMatchedRow(kw) {
     }
 
     // 不全可见，平滑滚动到第一个匹配行的位置
-    const viewport = document.querySelector('#myGrid .ag-body-viewport');
     if (viewport) {
         // 中断上一次正在进行的平滑滚动
         if (smoothScrollTarget !== null) {
