@@ -509,13 +509,16 @@ const TAG_COLORS = [
 const keywordColorIndex = {}; // keyword -> color index（持久映射，保证同一关键字始终同一颜色）
 let nextColorIdx = 0;
 
-// 延迟滚动：悬停标签时，若第一个匹配行不在可视区域内，自动滚动到它
+// 延迟滚动：悬停标签时，尽量让所有匹配行都显示在视口中；若匹配行太多超出视口，则从第一个匹配行开始显示
 function scrollToFirstMatchedRow(kw) {
     if (!gridApi || !kw) return;
     const viewport = document.querySelector('#myGrid .ag-body-viewport');
     if (!viewport) return;
     const vpRect = viewport.getBoundingClientRect();
     const count = gridApi.getDisplayedRowCount();
+
+    // 收集所有匹配行的索引，同时记录第一个和最后一个
+    let firstIdx = -1, lastIdx = -1;
     for (let i = 0; i < count; i++) {
         const rowNode = gridApi.getDisplayedRowAtIndex(i);
         if (!rowNode || !rowNode.data) continue;
@@ -523,16 +526,23 @@ function scrollToFirstMatchedRow(kw) {
         const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
         const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
         if (hasText || hasPinyin) {
-            // 检查该行是否已在视口内
-            const rowEl = rowNode.rowElement;
-            if (rowEl) {
-                const rowRect = rowEl.getBoundingClientRect();
-                if (rowRect.top >= vpRect.top && rowRect.bottom <= vpRect.bottom) return; // 已可见，不滚动
-            }
-            gridApi.ensureIndexVisible(i);
-            return;
+            if (firstIdx === -1) firstIdx = i;
+            lastIdx = i;
         }
     }
+    if (firstIdx === -1) return;
+
+    // 检查所有匹配行是否已经在视口内（首尾都在 = 全部可见）
+    const firstRowNode = gridApi.getDisplayedRowAtIndex(firstIdx);
+    const lastRowNode = gridApi.getDisplayedRowAtIndex(lastIdx);
+    if (firstRowNode && lastRowNode && firstRowNode.rowElement && lastRowNode.rowElement) {
+        const firstRect = firstRowNode.rowElement.getBoundingClientRect();
+        const lastRect = lastRowNode.rowElement.getBoundingClientRect();
+        if (firstRect.top >= vpRect.top && lastRect.bottom <= vpRect.bottom) return;
+    }
+
+    // 不全可见，滚动到第一个匹配行作为视口起始行
+    gridApi.ensureIndexVisible(firstIdx);
 }
 
 function getTagColor(keyword) {
