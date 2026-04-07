@@ -1322,7 +1322,7 @@ function renderSearchTags() {
         container.appendChild(createTagElement(currentKeywords[i], i));
     }
     // 更新 placeholder
-    input.placeholder = currentKeywords.length === 0 ? '扫码或输入名称/拼音，按回车添加...' : '';
+    input.placeholder = currentKeywords.length === 0 ? '扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询...' : '';
     // 调整 input 宽度
     updateInputStyle();
 }
