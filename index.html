@@ -495,6 +495,7 @@ let lastFilteredCount = 0; // 记录上次筛选结果数量
 // ==========================================
 let hoveredKeyword = null; // 当前鼠标悬停的标签关键字
 let hoverScrollTimer = null; // 悬停延迟滚动定时器
+let smoothScrollTarget = null; // 当前平滑滚动目标 scrollTop，用于中断检测
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
 const TAG_COLORS = [
     { bg: 'linear-gradient(135deg, #f87171, #ef4444)', text: '#ffffff', shadow: 'rgba(239,68,68,0.25)' },
@@ -541,8 +542,17 @@ function scrollToFirstMatchedRow(kw) {
         if (firstRect.top >= vpRect.top && lastRect.bottom <= vpRect.bottom) return;
     }
 
-    // 不全可见，将第一个匹配行滚动到视口顶部，让尽可能多的匹配行显示出来
-    gridApi.ensureIndexVisible(firstIdx, 'top');
+    // 不全可见，平滑滚动到第一个匹配行的位置
+    const viewport = document.querySelector('#myGrid .ag-body-viewport');
+    if (viewport) {
+        // 中断上一次正在进行的平滑滚动
+        if (smoothScrollTarget !== null) {
+            viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop);
+        }
+        const targetTop = firstRowNode.rowTop || 0;
+        smoothScrollTarget = targetTop;
+        viewport.scrollTo({ top: targetTop, behavior: 'smooth' });
+    }
 }
 
 function getTagColor(keyword) {
@@ -1250,6 +1260,12 @@ function createTagElement(kw, idx) {
         hoveredKeyword = null;
         if (gridApi) gridApi.redrawRows();
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
+        // 中断正在进行的平滑滚动
+        const vp = document.querySelector('#myGrid .ag-body-viewport');
+        if (vp && smoothScrollTarget !== null) {
+            vp.scrollTo(vp.scrollLeft, vp.scrollTop);
+            smoothScrollTarget = null;
+        }
     });
     return tag;
 }
