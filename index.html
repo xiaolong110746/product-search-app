@@ -541,8 +541,8 @@ function scrollToFirstMatchedRow(kw) {
         if (firstRect.top >= vpRect.top && lastRect.bottom <= vpRect.bottom) return;
     }
 
-    // 不全可见，滚动到第一个匹配行作为视口起始行
-    gridApi.ensureIndexVisible(firstIdx);
+    // 不全可见，将第一个匹配行滚动到视口顶部，让尽可能多的匹配行显示出来
+    gridApi.ensureIndexVisible(firstIdx, 'top');
 }
 
 function getTagColor(keyword) {
