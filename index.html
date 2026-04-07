@@ -494,6 +494,7 @@ let lastFilteredCount = 0; // 记录上次筛选结果数量
 // 标签颜色映射系统
 // ==========================================
 let hoveredKeyword = null; // 当前鼠标悬停的标签关键字
+let hoverScrollTimer = null; // 悬停延迟滚动定时器
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
 const TAG_COLORS = [
     { bg: 'linear-gradient(135deg, #f87171, #ef4444)', text: '#ffffff', shadow: 'rgba(239,68,68,0.25)' },
@@ -507,6 +508,32 @@ const TAG_COLORS = [
 ];
 const keywordColorIndex = {}; // keyword -> color index（持久映射，保证同一关键字始终同一颜色）
 let nextColorIdx = 0;
+
+// 延迟滚动：悬停标签时，若第一个匹配行不在可视区域内，自动滚动到它
+function scrollToFirstMatchedRow(kw) {
+    if (!gridApi || !kw) return;
+    const viewport = document.querySelector('#myGrid .ag-body-viewport');
+    if (!viewport) return;
+    const vpRect = viewport.getBoundingClientRect();
+    const count = gridApi.getDisplayedRowCount();
+    for (let i = 0; i < count; i++) {
+        const rowNode = gridApi.getDisplayedRowAtIndex(i);
+        if (!rowNode || !rowNode.data) continue;
+        const item = rowNode.data;
+        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+        const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+        if (hasText || hasPinyin) {
+            // 检查该行是否已在视口内
+            const rowEl = rowNode.rowElement;
+            if (rowEl) {
+                const rowRect = rowEl.getBoundingClientRect();
+                if (rowRect.top >= vpRect.top && rowRect.bottom <= vpRect.bottom) return; // 已可见，不滚动
+            }
+            gridApi.ensureIndexVisible(i);
+            return;
+        }
+    }
+}
 
 function getTagColor(keyword) {
     if (!(keyword in keywordColorIndex)) {
@@ -1198,14 +1225,21 @@ function createTagElement(kw, idx) {
     };
     tag.appendChild(textSpan);
     tag.appendChild(closeBtn);
-    // 悬停交互：悬停标签时高亮其匹配行，淡化其他行
+    // 悬停交互：悬停标签时高亮其匹配行，延迟滚动到第一个匹配行（若不在视口内）
     tag.addEventListener('mouseenter', function() {
         hoveredKeyword = kw;
         if (gridApi) gridApi.redrawRows();
+        // 延迟 300ms 后检测：如果第一个匹配行不在视口内，自动滚动到它
+        if (hoverScrollTimer) clearTimeout(hoverScrollTimer);
+        hoverScrollTimer = setTimeout(() => {
+            scrollToFirstMatchedRow(kw);
+            hoverScrollTimer = null;
+        }, 300);
     });
     tag.addEventListener('mouseleave', function() {
         hoveredKeyword = null;
         if (gridApi) gridApi.redrawRows();
+        if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
     });
     return tag;
 }
