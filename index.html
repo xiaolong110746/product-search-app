@@ -1808,9 +1808,12 @@ function handleTagClick(tagId) {
                 const allCols = gridApi.getColumnState();
                 const remainingSort = allCols.filter(col => col.sort && col.colId !== tagInfo.data);
                 if (remainingSort.length > 0) {
+                    // 还有其他排序列，只移除当前列
                     gridApi.applyColumnState({ sort: remainingSort.map(col => ({ colId: col.colId, sort: col.sort })) });
                 } else {
-                    gridApi.applyColumnState({ defaultSort: null });
+                    // 没有其他排序列了，清除所有排序恢复无序状态
+                    allCols.forEach(col => { if (col.sort) col.sort = null; });
+                    gridApi.applyColumnState({ state: allCols });
                 }
             }
             // 不需要手动调用 updateFilterStatus()，onSortChanged 会自动触发
@@ -1892,7 +1895,9 @@ function clearAllFilters() {
         // 清除 AG Grid 筛选和排序
         if (gridApi) {
             gridApi.setFilterModel(null);
-            gridApi.applyColumnState({ defaultSort: null });
+            const colState = gridApi.getColumnState();
+            colState.forEach(col => { if (col.sort) col.sort = null; });
+            gridApi.applyColumnState({ state: colState });
             gridApi.setGridOption('rowData', allData);
         }
         
@@ -1966,7 +1971,9 @@ function clearFilterOnly() {
         // 清除 AG Grid 列筛选和排序
         if (gridApi) {
             gridApi.setFilterModel(null);
-            gridApi.applyColumnState({ defaultSort: null });
+            const colState = gridApi.getColumnState();
+            colState.forEach(col => { if (col.sort) col.sort = null; });
+            gridApi.applyColumnState({ state: colState });
         }
         
         // 如果搜索框有内容，重新应用搜索
