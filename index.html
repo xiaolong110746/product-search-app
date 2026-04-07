@@ -1805,12 +1805,13 @@ function handleTagClick(tagId) {
         } else if (tagInfo.type === 'sort') {
             // 删除排序标签：取消该列排序
             if (gridApi) {
-                // 获取当前所有排序，去掉目标列后重新应用
                 const allCols = gridApi.getColumnState();
-                const remainingSort = allCols
-                    .filter(col => col.sort && col.colId !== tagInfo.data)
-                    .map(col => ({ colId: col.colId, sort: col.sort }));
-                gridApi.applyColumnState({ sort: remainingSort });
+                const remainingSort = allCols.filter(col => col.sort && col.colId !== tagInfo.data);
+                if (remainingSort.length > 0) {
+                    gridApi.applyColumnState({ sort: remainingSort.map(col => ({ colId: col.colId, sort: col.sort })) });
+                } else {
+                    gridApi.applyColumnState({ defaultSort: null });
+                }
             }
             // 不需要手动调用 updateFilterStatus()，onSortChanged 会自动触发
             showToast('✅ 已取消排序');
@@ -1891,7 +1892,7 @@ function clearAllFilters() {
         // 清除 AG Grid 筛选和排序
         if (gridApi) {
             gridApi.setFilterModel(null);
-            gridApi.applyColumnState({ sort: [] });
+            gridApi.applyColumnState({ defaultSort: null });
             gridApi.setGridOption('rowData', allData);
         }
         
@@ -1965,7 +1966,7 @@ function clearFilterOnly() {
         // 清除 AG Grid 列筛选和排序
         if (gridApi) {
             gridApi.setFilterModel(null);
-            gridApi.applyColumnState({ sort: [] });
+            gridApi.applyColumnState({ defaultSort: null });
         }
         
         // 如果搜索框有内容，重新应用搜索
