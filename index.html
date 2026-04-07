@@ -862,7 +862,7 @@ const numericComparator = (valueA, valueB) => {
 
 const columnDefs = [
     { field: '_matchedKeywords', headerName: '标签', width: 50, minWidth: 36, maxWidth: 200, pinned: 'left', cellRenderer: TagDotRenderer, sortable: false, filter: false, suppressSizeToFit: true, resizable: true },
-    { field: 'name', headerName: '商品名称', minWidth: 80, pinned: 'left', cellRenderer: SmartHighlightRenderer, tooltipField: 'name' },
+    { field: 'name', headerName: '商品名称', minWidth: 80, pinned: 'left', cellRenderer: SmartHighlightRenderer, tooltipField: 'name', cellStyle: { textAlign: 'left', justifyContent: 'flex-start', padding: '0 12px' } },
     { field: 'cost', headerName: '进价（条）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
     { field: 'priceStrip', headerName: '售价（条）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
     { field: 'suggestStrip', headerName: '建议价（条）', minWidth: 80, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
