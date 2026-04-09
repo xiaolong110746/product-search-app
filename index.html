@@ -2000,15 +2000,15 @@ function autoSizeAll() {
 function showFoundStatus(count) {
     badge.classList.remove('notfound');
     badge.classList.add('visible', 'found');
-    iconSpan.textContent = '✅';
-    statusText.textContent = `找到 ${count} 个`;
+    iconSpan.textContent = '';
+    statusText.textContent = `${count}`;
 }
 
 function showNotFoundStatus(query) {
     badge.classList.remove('found');
     badge.classList.add('visible', 'notfound');
-    iconSpan.textContent = '❌';
-    statusText.textContent = '未找到商品';
+    iconSpan.textContent = '';
+    statusText.textContent = `0`;
 }
 
 function hideStatus() {
