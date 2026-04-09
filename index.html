@@ -432,8 +432,20 @@
             .search-tag-text { max-width: 120px; }
             .search-tag-close { width: 16px; height: 16px; font-size: 11px; }
             .search-tag:hover { transform: none; } /* 手机没有hover */
-            .search-tag-close { display: none; } /* 手机端隐藏×按钮，改用滑动删除 */
-            /* 手机端点击激活状态的标签 - 加粗外框 + 微微放大 */
+            .search-tag { min-width: 56px; justify-content: center; }
+            .search-tag-close { display: none; } /* 手机端隐藏×按钮，改用上滑删除 */
+
+            /* 上滑消失动画 */
+            .search-tag.tag-swipe-up {
+                pointer-events: none;
+                animation: tagSwipeUp 0.35s ease-in forwards;
+            }
+            @keyframes tagSwipeUp {
+                0% { opacity: 1; transform: translateY(0) scale(1); max-width: 200px; }
+                100% { opacity: 0; transform: translateY(-24px) scale(0.8); max-width: 0; padding: 0; margin: 0; overflow: hidden; }
+            }
+
+            /* 激活状态（点击高亮时） */
             .search-tag.tag-active {
                 box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px var(--tag-shadow, rgba(37,99,235,0.5));
                 transform: scale(1.08);
@@ -441,33 +453,6 @@
             }
             .search-tag.tag-no-match.tag-active {
                 box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px rgba(156,163,175,0.4);
-            }
-            /* 滑动删除的容器 */
-            .search-tag-wrapper {
-                display: inline-flex;
-                align-items: center;
-                overflow: hidden;
-                border-radius: 14px;
-                max-width: 0;
-                transition: max-width 0.3s ease;
-            }
-            .search-tag-wrapper.swipe-open {
-                max-width: 60px;
-            }
-            .search-tag-wrapper .swipe-delete-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 28px;
-                height: 28px;
-                background: #dc2626;
-                color: white;
-                border-radius: 50%;
-                font-size: 16px;
-                font-weight: bold;
-                cursor: pointer;
-                flex-shrink: 0;
-                user-select: none;
             }
 
             /* 状态徽章 - 手机端移到搜索框内部右侧 */
@@ -1439,25 +1424,27 @@ function createTagElement(kw, idx) {
     });
 
     // ==========================================
-    // 手机端：点击切换高亮 + 左滑删除
+    // 手机端：点击切换高亮 + 上滑删除
     // ==========================================
     let touchStartX = 0;
     let touchStartY = 0;
     let touchMoved = false;
-    let swipeDeleteBtn = null;
+    let isVerticalSwipe = false;
 
     tag.addEventListener('touchstart', function(e) {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
         touchMoved = false;
+        isVerticalSwipe = false;
     }, { passive: true });
 
     tag.addEventListener('touchmove', function(e) {
         const dx = e.touches[0].clientX - touchStartX;
         const dy = e.touches[0].clientY - touchStartY;
-        // 只有水平滑动且超过阈值才认为是滑动（区分垂直滚动）
-        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        // 判断是否为垂直滑动（上滑）
+        if (!touchMoved && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.5) {
             touchMoved = true;
+            isVerticalSwipe = true;
         }
     }, { passive: true });
 
@@ -1465,65 +1452,21 @@ function createTagElement(kw, idx) {
         if (!touchMoved) {
             // 没有滑动 → 当作点击，切换高亮
             toggleMobileTagHighlight(kw, tag);
-        } else {
-            // 有滑动 → 检查是否是左滑删除
-            const dx = e.changedTouches[0].clientX - touchStartX;
-            if (dx < -40) {
-                showSwipeDelete(tag, idx);
+        } else if (isVerticalSwipe) {
+            // 垂直滑动 → 检查是否是上滑删除（向上滑超过 30px）
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            if (dy < -30) {
+                tag.classList.add('tag-swipe-up');
+                setTimeout(() => removeKeyword(idx), 350);
             }
         }
     });
-
-    function showSwipeDelete(tagEl, keywordIdx) {
-        // 如果已有打开的滑动删除按钮，先关闭
-        document.querySelectorAll('.search-tag-wrapper.swipe-open').forEach(w => {
-            w.classList.remove('swipe-open');
-            setTimeout(() => w.remove(), 300);
-        });
-
-        // 创建滑动删除按钮容器
-        const wrapper = document.createElement('span');
-        wrapper.className = 'search-tag-wrapper';
-        const delBtn = document.createElement('span');
-        delBtn.className = 'swipe-delete-btn';
-        delBtn.textContent = '✕';
-        delBtn.onclick = function(e) {
-            e.stopPropagation();
-            wrapper.classList.remove('swipe-open');
-            setTimeout(() => {
-                removeKeyword(keywordIdx);
-            }, 200);
-        };
-        wrapper.appendChild(delBtn);
-        tagEl.parentNode.insertBefore(wrapper, tagEl.nextSibling);
-
-        // 触发动画
-        requestAnimationFrame(() => {
-            wrapper.classList.add('swipe-open');
-        });
-
-        // 2秒后自动收回
-        setTimeout(() => {
-            if (wrapper.parentNode) {
-                wrapper.classList.remove('swipe-open');
-                setTimeout(() => { if (wrapper.parentNode) wrapper.remove(); }, 300);
-            }
-        }, 2500);
-
-        swipeDeleteBtn = wrapper;
-    }
 
     return tag;
 }
 
 // 手机端标签点击切换高亮
 function toggleMobileTagHighlight(kw, tagEl) {
-    // 关闭所有滑动删除按钮
-    document.querySelectorAll('.search-tag-wrapper.swipe-open').forEach(w => {
-        w.classList.remove('swipe-open');
-        setTimeout(() => w.remove(), 300);
-    });
-
     if (activeMobileKeyword === kw) {
         // 再次点击同一个标签 → 取消高亮
         activeMobileKeyword = null;
