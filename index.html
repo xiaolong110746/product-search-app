@@ -502,7 +502,7 @@
 <div class="container">
     <header>
         <div>
-            <h1>📦 卷烟查询 Test</h1>
+            <h1>📦 卷烟查询Test1</h1>
             <div class="subtitle">模糊查询 · 拼音搜索 · 排序筛选</div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
@@ -1465,7 +1465,7 @@ let isComposing = false;
 // 从输入框中提取分隔符分隔的关键字，自动创建标签
 // 返回 true 表示有标签被创建（输入框内容已变更）
 function extractTagsFromInput() {
-    const separators = /[,\t]+/;
+    const separators = /[, \t]+/;
     if (!separators.test(input.value)) return false;
 
     const parts = input.value.split(separators);
@@ -1478,16 +1478,20 @@ function extractTagsFromInput() {
         return false;
     }
 
-    // 除最后一个分段外，其余都创建为标签
-    for (let i = 0; i < nonEmpty.length - 1; i++) {
-        addKeyword(nonEmpty[i]);
+    // 尾部有分隔符（如 "中华," 或 "中华 "）→ 全部创建为标签，清空输入框
+    // 尾部无分隔符（如 "中华,利群"）→ 除最后一个外创建为标签，最后一个留在输入框继续编辑
+    const endsWithSeparator = /[, \t]$/.test(input.value);
+    const tagsToCreate = endsWithSeparator ? nonEmpty : nonEmpty.slice(0, -1);
+    const remaining = endsWithSeparator ? '' : nonEmpty[nonEmpty.length - 1];
+
+    for (const kw of tagsToCreate) {
+        addKeyword(kw);
     }
-    // 最后一个分段保留在输入框中继续编辑
-    input.value = nonEmpty[nonEmpty.length - 1];
+    input.value = remaining;
     updateInputStyle();
     triggerSearch();
     input.focus();
-    return true;
+    return tagsToCreate.length > 0;
 }
 
 function initScannerLogic() {
