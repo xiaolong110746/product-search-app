@@ -403,6 +403,98 @@
             width: 16px;
             text-align: center;
         }
+
+        /* ==========================================
+           响应式设计 - 手机端适配（≤768px）
+           ========================================== */
+        @media (max-width: 768px) {
+            /* 全局 */
+            html, body { overflow: auto; -webkit-overflow-scrolling: touch; }
+            body { padding: 0; }
+            .container { border-radius: 0; box-shadow: none; padding: 8px; min-height: 100vh; }
+            * { -webkit-tap-highlight-color: transparent; }
+
+            /* Header */
+            header { margin-bottom: 8px; gap: 8px; }
+            h1 { font-size: 1.15rem; }
+            .subtitle { font-size: 0.75rem; }
+
+            /* Header 按钮 */
+            .btn { padding: 7px 10px; font-size: 0.8rem; border-radius: 6px; }
+            .btn-primary { padding: 7px 12px; }
+            .btn-danger { padding: 7px 10px; }
+
+            /* 搜索框 */
+            .search-box { margin-bottom: 8px; gap: 8px; }
+            .search-container { padding: 6px 8px; font-size: 0.95rem; min-height: 40px; border-radius: 6px; }
+            .search-inline-input { font-size: 0.95rem; }
+            .search-tag { padding: 3px 6px 3px 10px; font-size: 0.8rem; border-radius: 12px; margin: 2px; }
+            .search-tag-text { max-width: 120px; }
+            .search-tag-close { width: 16px; height: 16px; font-size: 11px; }
+            .search-tag:hover { transform: none; } /* 手机没有hover */
+
+            /* 状态徽章 - 手机端移到搜索框内部右侧 */
+            .status-badge {
+                position: relative;
+                right: auto; top: auto;
+                transform: none;
+                padding: 5px 12px;
+                font-size: 0.85rem;
+                border-radius: 16px;
+                flex-shrink: 0;
+            }
+
+            /* AG Grid 表格缩小 */
+            .ag-theme-alpine { font-size: 14px !important; }
+            .ag-theme-alpine .ag-header-cell-text { font-size: 13px !important; }
+            .ag-theme-alpine .ag-cell { font-size: 14px !important; }
+            .ag-theme-alpine .ag-row { min-height: 38px !important; }
+            .ag-theme-alpine .ag-header-row { min-height: 36px !important; }
+            .ag-theme-alpine .ag-cell-value { padding: 0 6px; }
+
+            /* 筛选状态区 */
+            .filter-status { font-size: 0.8rem; gap: 6px; }
+            .filter-status.visible { padding: 6px 8px; margin-bottom: 6px; }
+            .filter-status .filter-tags-container { height: 24px; gap: 4px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+            .filter-status .filter-tag { min-width: 50px; height: 24px; font-size: 0.75rem; padding: 2px 8px; }
+            .filter-status .clear-btn { padding: 4px 10px; font-size: 0.75rem; border-radius: 4px; }
+            .filter-status .btn-group { gap: 3px; flex-shrink: 0; }
+
+            /* 页脚 */
+            .footer { font-size: 0.85rem; margin-top: 6px; }
+
+            /* Info-box */
+            .info-box { font-size: 0.82rem; padding: 8px 10px; margin-top: 6px; line-height: 1.4; }
+
+            /* Toast */
+            #toast { font-size: 15px !important; padding: 12px 20px !important; bottom: 16px !important; }
+
+            /* 右键菜单 - 手机端放大点击区域 */
+            .context-menu-item { padding: 12px 16px; font-size: 15px; }
+
+            /* 隐藏自动列宽按钮（手机端不太需要） */
+            .btn-auto-size-desktop { display: none; }
+
+            /* 筛选区在手机上允许换行 */
+            .filter-status .filter-tags-container {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+            }
+        }
+
+        /* 超小屏适配（≤380px，如小尺寸手机） */
+        @media (max-width: 380px) {
+            h1 { font-size: 1rem; }
+            .subtitle { display: none; }
+            .btn { padding: 6px 8px; font-size: 0.75rem; }
+            .search-container { font-size: 0.9rem; padding: 5px 6px; min-height: 36px; }
+            .ag-theme-alpine { font-size: 13px !important; }
+            .ag-theme-alpine .ag-header-cell-text { font-size: 12px !important; }
+            .ag-theme-alpine .ag-cell { font-size: 13px !important; }
+            .ag-theme-alpine .ag-row { min-height: 34px !important; }
+            .ag-theme-alpine .ag-header-row { min-height: 32px !important; }
+            .filter-status .clear-btn { padding: 3px 8px; font-size: 0.7rem; }
+        }
     </style>
 </head>
 <body>
@@ -411,19 +503,19 @@
     <header>
         <div>
             <h1>📦 卷烟查询</h1>
-            <div class="subtitle">支持：扫码，多关键字模糊查询，拼音首字母组合模糊查询，表头排序、条件筛选。</div>
+            <div class="subtitle">模糊查询 · 拼音搜索 · 排序筛选</div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-            <button class="btn btn-primary" onclick="triggerFileSelect()">📂 导入 Excel</button>
+            <button class="btn btn-primary" onclick="triggerFileSelect()">📂 导入</button>
             <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)">
-            <button class="btn" onclick="autoSizeAll()">↔️ 自动列宽</button>
-            <button class="btn btn-danger" onclick="clearSavedData()">🗑️ 清除数据</button>
+            <button class="btn btn-auto-size-desktop" onclick="autoSizeAll()">↔️ 自动列宽</button>
+            <button class="btn btn-danger" onclick="clearSavedData()">🗑️</button>
         </div>
     </header>
 
     <div class="search-box">
         <div id="searchContainer" class="search-container">
-            <input type="text" id="searchInput" class="search-inline-input" placeholder="扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询..." autofocus>
+            <input type="text" id="searchInput" class="search-inline-input" placeholder="输入关键字模糊查询..." data-desktop-placeholder="扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询..." data-mobile-placeholder="输入关键字查询..." autofocus>
         </div>
         <div id="statusBadge" class="status-badge">
             <span id="iconSpan"></span>
@@ -860,7 +952,13 @@ const numericComparator = (valueA, valueB) => {
     return valA - valB;
 };
 
-const columnDefs = [
+// 检测是否为移动端
+function isMobile() {
+    return window.innerWidth <= 768;
+}
+
+// 桌面端列配置
+const desktopColumnDefs = [
     { field: '_matchedKeywords', headerName: '标签', width: 50, minWidth: 36, maxWidth: 200, pinned: 'left', cellRenderer: TagDotRenderer, sortable: false, filter: false, suppressSizeToFit: true, resizable: true },
     { field: 'name', headerName: '商品名称', minWidth: 80, pinned: 'left', cellRenderer: SmartHighlightRenderer, tooltipField: 'name', cellStyle: { textAlign: 'left', justifyContent: 'flex-start', padding: '0 12px' } },
     { field: 'cost', headerName: '进价（条）', minWidth: 70, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
@@ -872,6 +970,27 @@ const columnDefs = [
     { field: 'barcodePack', headerName: '包码', minWidth: 90, cellRenderer: SmartHighlightRenderer },
     { field: 'remark', headerName: '备注', minWidth: 100, cellRenderer: SmartHighlightRenderer }
 ];
+
+// 手机端列配置 - 精简列，取消固定，允许横向滚动
+const mobileColumnDefs = [
+    { field: '_matchedKeywords', headerName: '🏷', width: 38, minWidth: 30, maxWidth: 60, cellRenderer: TagDotRenderer, sortable: false, filter: false, suppressSizeToFit: true, resizable: false },
+    { field: 'name', headerName: '商品名称', minWidth: 90, cellRenderer: SmartHighlightRenderer, tooltipField: 'name', cellStyle: { textAlign: 'left', justifyContent: 'flex-start', padding: '0 8px' } },
+    { field: 'cost', headerName: '进价', minWidth: 60, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'priceStrip', headerName: '条售价', minWidth: 60, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'suggestStrip', headerName: '建议条', minWidth: 60, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'pricePack', headerName: '包售价', minWidth: 60, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'suggestPack', headerName: '建议包', minWidth: 60, cellRenderer: NumericRenderer, comparator: numericComparator, filter: 'agNumberColumnFilter' },
+    { field: 'barcodeStrip', headerName: '条码', minWidth: 100, cellRenderer: SmartHighlightRenderer },
+    { field: 'barcodePack', headerName: '包码', minWidth: 100, cellRenderer: SmartHighlightRenderer },
+    { field: 'remark', headerName: '备注', minWidth: 80, cellRenderer: SmartHighlightRenderer, hide: true }
+];
+
+// 根据设备类型返回对应的列配置
+function getColumnDefs() {
+    return isMobile() ? mobileColumnDefs : desktopColumnDefs;
+}
+
+const columnDefs = getColumnDefs();
 
 const gridOptions = {
     columnDefs: columnDefs,
@@ -1322,7 +1441,9 @@ function renderSearchTags() {
         container.appendChild(createTagElement(currentKeywords[i], i));
     }
     // 更新 placeholder
-    input.placeholder = currentKeywords.length === 0 ? '扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询...' : '';
+    input.placeholder = currentKeywords.length === 0
+        ? (isMobile() ? '输入关键字查询...' : '扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询...')
+        : '';
     // 调整 input 宽度
     updateInputStyle();
 }
@@ -1483,6 +1604,12 @@ const SCANNER_MAX_GAP = 80;    // 扫描枪字符最大间隔（毫秒），扫�
 const SCANNER_MIN_LENGTH = 3;  // 最短有效扫码长度
 
 function initGlobalScannerCapture() {
+    // 手机端不需要扫码枪检测，直接返回
+    if (isMobile()) {
+        console.log('📱 移动端已跳过扫码枪检测');
+        return;
+    }
+
     document.addEventListener('keydown', function(e) {
         // 忽略组合键（Ctrl/Alt/Meta），避免干扰正常快捷键操作
         if (e.ctrlKey || e.altKey || e.metaKey) return;
@@ -2067,33 +2194,59 @@ function initContextMenu() {
     const contextMenu = document.getElementById('contextMenu');
     const menuCopy = document.getElementById('menuCopy');
     
+    // 公共函数：显示右键菜单
+    function showContextMenuAt(x, y, targetCell) {
+        contextMenuTargetCell = targetCell;
+        contextMenu.classList.add('visible');
+        const menuWidth = contextMenu.offsetWidth;
+        const menuHeight = contextMenu.offsetHeight;
+        if (x + menuWidth > window.innerWidth) {
+            x = window.innerWidth - menuWidth - 10;
+        }
+        if (y + menuHeight > window.innerHeight) {
+            y = window.innerHeight - menuHeight - 10;
+        }
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+    }
+    
     // 监听表格区域的右键事件
     document.getElementById('myGrid').addEventListener('contextmenu', function(e) {
         e.preventDefault();
-        
-        // 找到最近的单元格
         const cell = e.target.closest('.ag-cell');
         if (cell) {
-            contextMenuTargetCell = cell;
-            
-            // 定位菜单
-            let x = e.clientX;
-            let y = e.clientY;
-            
-            // 确保菜单不超出屏幕
-            contextMenu.classList.add('visible');
-            const menuWidth = contextMenu.offsetWidth;
-            const menuHeight = contextMenu.offsetHeight;
-            
-            if (x + menuWidth > window.innerWidth) {
-                x = window.innerWidth - menuWidth - 10;
-            }
-            if (y + menuHeight > window.innerHeight) {
-                y = window.innerHeight - menuHeight - 10;
-            }
-            
-            contextMenu.style.left = x + 'px';
-            contextMenu.style.top = y + 'px';
+            showContextMenuAt(e.clientX, e.clientY, cell);
+        }
+    });
+    
+    // 手机端长按触发右键菜单
+    let longPressTimer = null;
+    let longPressTarget = null;
+    
+    document.getElementById('myGrid').addEventListener('touchstart', function(e) {
+        const cell = e.target.closest('.ag-cell');
+        if (!cell) return;
+        longPressTarget = cell;
+        longPressTimer = setTimeout(function() {
+            e.preventDefault();
+            const touch = e.touches[0];
+            showContextMenuAt(touch.clientX, touch.clientY, cell);
+            // 触觉反馈（如果浏览器支持）
+            if (navigator.vibrate) navigator.vibrate(30);
+        }, 600);
+    }, { passive: false });
+    
+    document.getElementById('myGrid').addEventListener('touchend', function(e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    });
+    
+    document.getElementById('myGrid').addEventListener('touchmove', function(e) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
         }
     });
     
@@ -2261,13 +2414,23 @@ function initApp() {
 document.addEventListener('DOMContentLoaded', initApp);
 
 // 窗口大小变化时刷新 AG Grid 布局
+let lastDeviceType = isMobile();
 window.addEventListener('resize', function() {
     if (gridApi) {
         // 使用防抖避免频繁刷新
         clearTimeout(window.resizeTimer);
         window.resizeTimer = setTimeout(function() {
-            gridApi.autoSizeAllColumns();
-        }, 100);
+            // 检测是否跨越了桌面/手机边界，需要切换列配置
+            const currentType = isMobile();
+            if (currentType !== lastDeviceType) {
+                lastDeviceType = currentType;
+                console.log(currentType ? '📱 切换到手机端列配置' : '🖥️ 切换到桌面端列配置');
+                gridApi.setGridOption('columnDefs', getColumnDefs());
+                gridApi.autoSizeAllColumns();
+            } else {
+                gridApi.autoSizeAllColumns();
+            }
+        }, 200);
     }
 });
 
