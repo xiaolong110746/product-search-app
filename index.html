@@ -432,6 +432,43 @@
             .search-tag-text { max-width: 120px; }
             .search-tag-close { width: 16px; height: 16px; font-size: 11px; }
             .search-tag:hover { transform: none; } /* 手机没有hover */
+            .search-tag-close { display: none; } /* 手机端隐藏×按钮，改用滑动删除 */
+            /* 手机端点击激活状态的标签 - 加粗外框 + 微微放大 */
+            .search-tag.tag-active {
+                box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px var(--tag-shadow, rgba(37,99,235,0.5));
+                transform: scale(1.08);
+                z-index: 5;
+            }
+            .search-tag.tag-no-match.tag-active {
+                box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px rgba(156,163,175,0.4);
+            }
+            /* 滑动删除的容器 */
+            .search-tag-wrapper {
+                display: inline-flex;
+                align-items: center;
+                overflow: hidden;
+                border-radius: 14px;
+                max-width: 0;
+                transition: max-width 0.3s ease;
+            }
+            .search-tag-wrapper.swipe-open {
+                max-width: 60px;
+            }
+            .search-tag-wrapper .swipe-delete-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                background: #dc2626;
+                color: white;
+                border-radius: 50%;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                flex-shrink: 0;
+                user-select: none;
+            }
 
             /* 状态徽章 - 手机端移到搜索框内部右侧 */
             .status-badge {
@@ -502,7 +539,7 @@
 <div class="container">
     <header>
         <div>
-            <h1>📦 卷烟查询Test1</h1>
+            <h1>📦 卷烟查询</h1>
             <div class="subtitle">模糊查询 · 拼音搜索 · 排序筛选</div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
@@ -586,6 +623,7 @@ let lastFilteredCount = 0; // 记录上次筛选结果数量
 // 标签颜色映射系统
 // ==========================================
 let hoveredKeyword = null; // 当前鼠标悬停的标签关键字
+let activeMobileKeyword = null; // 手机端点击激活的标签关键字
 let hoverScrollTimer = null; // 悬停延迟滚动定时器
 let smoothScrollTarget = null; // 当前平滑滚动目标 scrollTop，用于中断检测
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
@@ -997,12 +1035,12 @@ const gridOptions = {
     rowData: [],
     defaultColDef: { resizable: true, sortable: true },
     getRowClass: function(params) {
-        if (!hoveredKeyword || !params.data) return '';
-        // 悬停标签时：检查该行是否匹配当前悬停的关键字
-        const kw = hoveredKeyword;
+        // 同时支持桌面端鼠标悬停和手机端点击激活
+        const activeKw = hoveredKeyword || activeMobileKeyword;
+        if (!activeKw || !params.data) return '';
         const item = params.data;
-        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
-        const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(activeKw));
+        const hasPinyin = item.namePinyin && item.namePinyin.includes(activeKw);
         if (hasText || hasPinyin) {
             return 'row-highlight-by-tag';
         }
@@ -1337,6 +1375,7 @@ function updateTagColors() {
 function createTagElement(kw, idx) {
     const tag = document.createElement('span');
     tag.className = 'search-tag';
+    tag.dataset.keyword = kw;
     // 根据是否有匹配结果决定颜色
     const hasMatch = keywordHasMatch(kw);
     if (hasMatch) {
@@ -1350,24 +1389,38 @@ function createTagElement(kw, idx) {
         tag.style.setProperty('--tag-shadow', 'rgba(156,163,175,0.1)');
         tag.classList.add('tag-no-match');
     }
+    // 如果当前关键字是手机端激活的标签，恢复激活状态
+    if (kw === activeMobileKeyword) {
+        tag.classList.add('tag-active');
+    }
+
     const textSpan = document.createElement('span');
     textSpan.className = 'search-tag-text';
     textSpan.textContent = kw;
+
     const closeBtn = document.createElement('span');
     closeBtn.className = 'search-tag-close';
     closeBtn.textContent = '×';
-    closeBtn.dataset.keywordIdx = idx; // 存储索引，供 updateTagColors 使用
+    closeBtn.dataset.keywordIdx = idx;
     closeBtn.onclick = function(e) {
         e.stopPropagation();
         removeKeyword(idx);
     };
+
     tag.appendChild(textSpan);
     tag.appendChild(closeBtn);
-    // 悬停交互：悬停标签时高亮其匹配行，延迟滚动到第一个匹配行（若不在视口内）
+
+    // 手机端隐藏 × 按钮，用左滑删除代替
+    if (isMobile()) {
+        closeBtn.style.display = 'none';
+    }
+
+    // ==========================================
+    // 桌面端：鼠标悬停交互
+    // ==========================================
     tag.addEventListener('mouseenter', function() {
         hoveredKeyword = kw;
         if (gridApi) gridApi.redrawRows();
-        // 延迟 300ms 后检测：如果第一个匹配行不在视口内，自动滚动到它
         if (hoverScrollTimer) clearTimeout(hoverScrollTimer);
         hoverScrollTimer = setTimeout(() => {
             scrollToFirstMatchedRow(kw);
@@ -1378,14 +1431,114 @@ function createTagElement(kw, idx) {
         hoveredKeyword = null;
         if (gridApi) gridApi.redrawRows();
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
-        // 中断正在进行的平滑滚动
         const vp = document.querySelector('#myGrid .ag-body-viewport');
         if (vp && smoothScrollTarget !== null) {
             vp.scrollTo(vp.scrollLeft, vp.scrollTop);
             smoothScrollTarget = null;
         }
     });
+
+    // ==========================================
+    // 手机端：点击切换高亮 + 左滑删除
+    // ==========================================
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMoved = false;
+    let swipeDeleteBtn = null;
+
+    tag.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchMoved = false;
+    }, { passive: true });
+
+    tag.addEventListener('touchmove', function(e) {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        // 只有水平滑动且超过阈值才认为是滑动（区分垂直滚动）
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            touchMoved = true;
+        }
+    }, { passive: true });
+
+    tag.addEventListener('touchend', function(e) {
+        if (!touchMoved) {
+            // 没有滑动 → 当作点击，切换高亮
+            toggleMobileTagHighlight(kw, tag);
+        } else {
+            // 有滑动 → 检查是否是左滑删除
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (dx < -40) {
+                showSwipeDelete(tag, idx);
+            }
+        }
+    });
+
+    function showSwipeDelete(tagEl, keywordIdx) {
+        // 如果已有打开的滑动删除按钮，先关闭
+        document.querySelectorAll('.search-tag-wrapper.swipe-open').forEach(w => {
+            w.classList.remove('swipe-open');
+            setTimeout(() => w.remove(), 300);
+        });
+
+        // 创建滑动删除按钮容器
+        const wrapper = document.createElement('span');
+        wrapper.className = 'search-tag-wrapper';
+        const delBtn = document.createElement('span');
+        delBtn.className = 'swipe-delete-btn';
+        delBtn.textContent = '✕';
+        delBtn.onclick = function(e) {
+            e.stopPropagation();
+            wrapper.classList.remove('swipe-open');
+            setTimeout(() => {
+                removeKeyword(keywordIdx);
+            }, 200);
+        };
+        wrapper.appendChild(delBtn);
+        tagEl.parentNode.insertBefore(wrapper, tagEl.nextSibling);
+
+        // 触发动画
+        requestAnimationFrame(() => {
+            wrapper.classList.add('swipe-open');
+        });
+
+        // 2秒后自动收回
+        setTimeout(() => {
+            if (wrapper.parentNode) {
+                wrapper.classList.remove('swipe-open');
+                setTimeout(() => { if (wrapper.parentNode) wrapper.remove(); }, 300);
+            }
+        }, 2500);
+
+        swipeDeleteBtn = wrapper;
+    }
+
     return tag;
+}
+
+// 手机端标签点击切换高亮
+function toggleMobileTagHighlight(kw, tagEl) {
+    // 关闭所有滑动删除按钮
+    document.querySelectorAll('.search-tag-wrapper.swipe-open').forEach(w => {
+        w.classList.remove('swipe-open');
+        setTimeout(() => w.remove(), 300);
+    });
+
+    if (activeMobileKeyword === kw) {
+        // 再次点击同一个标签 → 取消高亮
+        activeMobileKeyword = null;
+        tagEl.classList.remove('tag-active');
+        if (gridApi) gridApi.redrawRows();
+    } else {
+        // 切换到新标签的高亮
+        // 先取消旧的
+        document.querySelectorAll('.search-tag.tag-active').forEach(t => t.classList.remove('tag-active'));
+        activeMobileKeyword = kw;
+        tagEl.classList.add('tag-active');
+        if (gridApi) gridApi.redrawRows();
+        // 延迟滚动到第一个匹配行
+        setTimeout(() => scrollToFirstMatchedRow(kw), 100);
+    }
 }
 
 // 根据光标位置动态调整 input 宽度
