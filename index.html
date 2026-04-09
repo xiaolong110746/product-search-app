@@ -433,14 +433,14 @@
             .search-tag-close { width: 16px; height: 16px; font-size: 11px; }
             .search-tag:hover { transform: none; } /* 手机没有hover */
             .search-tag { min-width: 56px; justify-content: center; }
-            .search-tag-close { display: none; } /* 手机端隐藏×按钮，改用上滑删除 */
+            .search-tag-close { display: none; } /* 手机端隐藏×按钮，改用长按删除 */
 
-            /* 上滑消失动画 */
+            /* 长按消失动画 */
             .search-tag.tag-swipe-up {
                 pointer-events: none;
-                animation: tagSwipeUp 0.35s ease-in forwards;
+                animation: tagFadeUp 0.35s ease-in forwards;
             }
-            @keyframes tagSwipeUp {
+            @keyframes tagFadeUp {
                 0% { opacity: 1; transform: translateY(0) scale(1); max-width: 200px; }
                 100% { opacity: 0; transform: translateY(-24px) scale(0.8); max-width: 0; padding: 0; margin: 0; overflow: hidden; }
             }
@@ -1424,41 +1424,45 @@ function createTagElement(kw, idx) {
     });
 
     // ==========================================
-    // 手机端：点击切换高亮 + 上滑删除
+    // 手机端：点击切换高亮 + 长按删除
     // ==========================================
     let touchStartX = 0;
     let touchStartY = 0;
     let touchMoved = false;
-    let isVerticalSwipe = false;
+    let touchStartTime = 0;
+    let longPressTimer = null;
+    let longPressTriggered = false;
 
     tag.addEventListener('touchstart', function(e) {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
         touchMoved = false;
-        isVerticalSwipe = false;
+        touchStartTime = Date.now();
+        longPressTriggered = false;
+        // 启动长按计时
+        longPressTimer = setTimeout(function() {
+            longPressTriggered = true;
+            tag.classList.add('tag-swipe-up');
+            if (navigator.vibrate) navigator.vibrate(20);
+            setTimeout(() => removeKeyword(idx), 350);
+        }, 500);
     }, { passive: true });
 
     tag.addEventListener('touchmove', function(e) {
         const dx = e.touches[0].clientX - touchStartX;
         const dy = e.touches[0].clientY - touchStartY;
-        // 判断是否为垂直滑动（上滑）
-        if (!touchMoved && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+        // 移动超过 10px 取消长按
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
             touchMoved = true;
-            isVerticalSwipe = true;
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
         }
     }, { passive: true });
 
     tag.addEventListener('touchend', function(e) {
-        if (!touchMoved) {
-            // 没有滑动 → 当作点击，切换高亮
+        if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        if (!longPressTriggered && !touchMoved) {
+            // 短按无移动 → 当作点击，切换高亮
             toggleMobileTagHighlight(kw, tag);
-        } else if (isVerticalSwipe) {
-            // 垂直滑动 → 检查是否是上滑删除（向上滑超过 30px）
-            const dy = e.changedTouches[0].clientY - touchStartY;
-            if (dy < -30) {
-                tag.classList.add('tag-swipe-up');
-                setTimeout(() => removeKeyword(idx), 350);
-            }
         }
     });
 
