@@ -479,21 +479,24 @@
             .filter-status.visible { padding: 6px 8px; margin-bottom: 6px; }
             .filter-status .filter-tags-container { height: 24px; gap: 4px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
             .filter-status .filter-tag { min-width: 50px; height: 24px; font-size: 0.75rem; padding: 2px 8px; }
-            .filter-status .clear-btn { padding: 4px 6px; font-size: 0; border-radius: 4px; position: relative; overflow: visible; }
-            .filter-status .clear-btn::after { font-size: 1.1rem; }
+            .filter-status .clear-btn { padding: 4px 6px; font-size: 0; border-radius: 4px; position: relative; overflow: visible; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; }
+            .filter-status .clear-btn::after { font-size: 1.2rem; position: relative; z-index: 0; }
             .filter-status .clear-btn.search::after { content: "🔍"; }
             .filter-status .clear-btn.filter::after { content: "⚙️"; }
             .filter-status .clear-btn.all::after { content: "🗑️"; }
             .filter-status .clear-btn.search::before,
             .filter-status .clear-btn.filter::before {
                 content: "✕";
-                position: absolute; top: -5px; right: -5px;
-                width: 14px; height: 14px; line-height: 14px;
-                background: #dc2626; color: #fff;
-                font-size: 9px; text-align: center;
+                position: absolute;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                width: 16px; height: 16px; line-height: 16px;
+                background: rgba(220, 38, 38, 0.85);
+                color: #fff;
+                font-size: 11px; text-align: center;
                 border-radius: 50%; font-weight: 700;
-                border: 1.5px solid #fff;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                z-index: 1;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.25);
             }
             .filter-status .btn-group { gap: 3px; flex-shrink: 0; }
 
