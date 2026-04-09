@@ -1445,7 +1445,7 @@ function createTagElement(kw, idx) {
             longPressTriggered = true;
             tag.classList.add('tag-swipe-up');
             if (navigator.vibrate) navigator.vibrate(20);
-            setTimeout(() => removeKeyword(idx), 350);
+            setTimeout(() => { removeKeyword(idx); document.getElementById('searchInput').blur(); }, 350);
         }, 500);
     }, { passive: false });
 
