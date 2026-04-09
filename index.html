@@ -1434,6 +1434,7 @@ function createTagElement(kw, idx) {
     let longPressTriggered = false;
 
     tag.addEventListener('touchstart', function(e) {
+        e.preventDefault(); // 阻止浏览器默认长按行为（文字选择光标、输入法弹出等）
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
         touchMoved = false;
@@ -1446,7 +1447,7 @@ function createTagElement(kw, idx) {
             if (navigator.vibrate) navigator.vibrate(20);
             setTimeout(() => removeKeyword(idx), 350);
         }, 500);
-    }, { passive: true });
+    }, { passive: false });
 
     tag.addEventListener('touchmove', function(e) {
         const dx = e.touches[0].clientX - touchStartX;
