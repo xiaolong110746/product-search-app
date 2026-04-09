@@ -1459,7 +1459,63 @@ function triggerSearch() {
     filterData(query);
 }
 
+// IME 组合输入状态（手机端中文输入法依赖此标记）
+let isComposing = false;
+
+// 从输入框中提取分隔符分隔的关键字，自动创建标签
+// 返回 true 表示有标签被创建（输入框内容已变更）
+function extractTagsFromInput() {
+    const separators = /[,\t]+/;
+    if (!separators.test(input.value)) return false;
+
+    const parts = input.value.split(separators);
+    const nonEmpty = parts.map(p => p.trim()).filter(p => p.length > 0);
+
+    if (nonEmpty.length === 0) {
+        // 全是分隔符，清空输入框
+        input.value = '';
+        updateInputStyle();
+        return false;
+    }
+
+    // 除最后一个分段外，其余都创建为标签
+    for (let i = 0; i < nonEmpty.length - 1; i++) {
+        addKeyword(nonEmpty[i]);
+    }
+    // 最后一个分段保留在输入框中继续编辑
+    input.value = nonEmpty[nonEmpty.length - 1];
+    updateInputStyle();
+    triggerSearch();
+    input.focus();
+    return true;
+}
+
 function initScannerLogic() {
+    // IME 组合开始/结束追踪（手机端中文输入法关键）
+    input.addEventListener('compositionstart', function() {
+        isComposing = true;
+    });
+
+    input.addEventListener('compositionend', function(e) {
+        isComposing = false;
+        // 中文输入法确认后，检查输入框中是否包含分隔符
+        // 例如用户输入 "中华，利群" 然后确认，这时 input.value 可能是 "中华，利群"
+        extractTagsFromInput();
+        // 继续触发实时搜索
+        const val = input.value.trim();
+        if (val === '') {
+            lastSearchedKeywordsStr = '';
+            filterData(currentKeywords.join(','));
+        } else {
+            lastSearchedKeywordsStr = '';
+            const query = currentKeywords.length > 0
+                ? currentKeywords.join(',') + ',' + val
+                : val;
+            filterData(query);
+        }
+        updateInputStyle();
+    });
+
     // 实时搜索：每输入一个字符就搜索（防抖 256ms）
     input.addEventListener('input', function(e) {
         const val = input.value.trim();
@@ -1472,6 +1528,19 @@ function initScannerLogic() {
         }
 
         if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+        // IME 组合中只更新样式，不做搜索和标签拆分
+        if (isComposing) {
+            updateInputStyle();
+            return;
+        }
+
+        // 【手机端关键】检测分隔符，自动拆分为标签
+        // 桌面端也兼容：粘贴带逗号的文本、中文逗号等场景
+        if (extractTagsFromInput()) {
+            // 有标签被创建，extractTagsFromInput 内部已触发搜索
+            return;
+        }
 
         if (val === '') {
             // 输入框清空，用已有标签搜索
@@ -1494,7 +1563,7 @@ function initScannerLogic() {
         updateInputStyle();
     });
 
-    // 回车/逗号：在光标位置插入新标签
+    // 回车/逗号/中文逗号：在光标位置插入新标签
     // Backspace：输入框为空时删除光标前的标签
     // Delete：输入框为空时删除光标后的标签
     // ArrowLeft/Right：光标在边界时移动光标位置
@@ -1502,6 +1571,10 @@ function initScannerLogic() {
         // 扫描枪正在输入时，跳过所有处理（交给全局扫描枪捕获器）
         if (scannerIsScanning) return;
 
+        // IME 组合期间（中文输入法选字阶段），跳过所有快捷键
+        if (e.isComposing) return;
+
+        // 分隔符触发标签创建：支持英文逗号、空格、Tab、回车
         if (e.key === 'Enter' || e.key === ',' || e.key === ' ' || e.key === 'Tab') {
             e.preventDefault();
             const val = input.value.trim();
