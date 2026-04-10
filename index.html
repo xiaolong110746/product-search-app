@@ -1789,8 +1789,31 @@ function initScannerLogic() {
                 ? currentKeywords.join(',') + ',' + val
                 : val;
             filterData(query);
+            // 输入法确认后也启动5秒自动建标签定时器
+            // （防止某些浏览器 input 事件先于 compositionend 触发导致 autoTagTimer 未设置）
+            if (autoTagTimer) clearTimeout(autoTagTimer);
+            autoTagTimer = setTimeout(() => {
+                autoTagTimer = null;
+                const autoVal = input.value.trim();
+                if (autoVal && !scannerIsScanning && !isComposing) {
+                    input.value = '';
+                    updateInputStyle();
+                    addKeyword(autoVal);
+                }
+            }, 5000);
         }
         updateInputStyle();
+    });
+
+    // 输入框失去焦点时，立即将输入框内容创建为标签
+    input.addEventListener('blur', function() {
+        if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
+        const val = input.value.trim();
+        if (val && !scannerIsScanning) {
+            input.value = '';
+            updateInputStyle();
+            addKeyword(val);
+        }
     });
 
     // 实时搜索：每输入一个字符就搜索（防抖 256ms）
