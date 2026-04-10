@@ -724,62 +724,75 @@ function scheduleOverlayUpdate() {
 
 function updateHighlightOverlay() {
     if (!gridApi) return;
+    var gridEl = document.getElementById('myGrid');
+    var bodyViewport = gridEl.querySelector('.ag-body-viewport');
+    if (!bodyViewport) return;
+
+    // 先清除可能残留的旧 overlay（之前挂在 #myGrid 下的）
+    var oldOverlay = document.getElementById('highlightOverlay');
+    if (oldOverlay && oldOverlay.parentElement && oldOverlay.parentElement !== bodyViewport) oldOverlay.remove();
+
     var activeKw = hoveredKeyword || activeMobileKeyword;
     if (!activeKw && autoHighlightKeywords.size === 0) {
         var o = document.getElementById('highlightOverlay');
         if (o) o.remove();
         return;
     }
-    var gridEl = document.getElementById('myGrid');
-    var bodyViewport = gridEl.querySelector('.ag-body-viewport');
-    if (!gridEl || !bodyViewport) return;
+    // 确保 bodyViewport 是定位参考元素
+    if (getComputedStyle(bodyViewport).position === 'static') {
+        bodyViewport.style.position = 'relative';
+    }
     var vpRect = bodyViewport.getBoundingClientRect();
-    var gridRect = gridEl.getBoundingClientRect();
-    var scrollTop = bodyViewport.scrollTop;
+
     var overlay = document.getElementById('highlightOverlay');
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'highlightOverlay';
-        overlay.style.cssText = 'position:absolute;pointer-events:none;z-index:5;overflow:hidden;';
-        gridEl.appendChild(overlay);
+        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;overflow:hidden;';
+        bodyViewport.appendChild(overlay);
     }
-    overlay.style.top = (vpRect.top - gridRect.top) + 'px';
-    overlay.style.left = (vpRect.left - gridRect.left) + 'px';
-    overlay.style.width = vpRect.width + 'px';
-    overlay.style.height = vpRect.height + 'px';
-    var first = gridApi.getFirstDisplayedRow();
-    var last = gridApi.getLastDisplayedRow();
-    var kws = activeKw ? [activeKw].concat(Array.from(autoHighlightKeywords)) : Array.from(autoHighlightKeywords);
+
+    // 用 DOM 查询所有高亮行，直接用 getBoundingClientRect 获取真实视觉位置
+    var highlightedRows = bodyViewport.querySelectorAll('.ag-row.row-highlight-by-tag');
+    if (highlightedRows.length === 0) {
+        overlay.remove();
+        return;
+    }
+
+    // 按视觉位置排序（getBoundingClientRect.top），然后将相邻行分组
+    var rowInfos = [];
+    for (var r = 0; r < highlightedRows.length; r++) {
+        var rowEl = highlightedRows[r];
+        var rowRect = rowEl.getBoundingClientRect();
+        rowInfos.push({ top: rowRect.top, bottom: rowRect.bottom });
+    }
+    rowInfos.sort(function(a, b) { return a.top - b.top; });
+
+    // 分组：连续的行（上一行 bottom ≈ 下一行 top）合并为一组
     var groups = [];
-    var inGroup = false, groupStart = -1;
-    for (var i = first; i <= last; i++) {
-        var node = gridApi.getDisplayedRowAtIndex(i);
-        if (!node || !node.data) continue;
-        var item = node.data;
-        var hl = false;
-        for (var k = 0; k < kws.length; k++) {
-            var kw = kws[k];
-            if (Object.values(item).some(function(v) { return String(v).toLowerCase().includes(kw); }) ||
-                (item.namePinyin && item.namePinyin.includes(kw))) { hl = true; break; }
-        }
-        if (hl) {
-            if (!inGroup) { groupStart = i; inGroup = true; }
-        } else if (inGroup) {
-            groups.push({ s: groupStart, e: i - 1 });
-            inGroup = false;
+    var curGroup = { top: rowInfos[0].top, bottom: rowInfos[0].bottom };
+    for (var j = 1; j < rowInfos.length; j++) {
+        // 允许 2px 误差（行间距、子像素渲染）
+        if (Math.abs(curGroup.bottom - rowInfos[j].top) < 2) {
+            curGroup.bottom = rowInfos[j].bottom;
+        } else {
+            groups.push(curGroup);
+            curGroup = { top: rowInfos[j].top, bottom: rowInfos[j].bottom };
         }
     }
-    if (inGroup) groups.push({ s: groupStart, e: last });
+    groups.push(curGroup);
+
     overlay.innerHTML = '';
     for (var g = 0; g < groups.length; g++) {
-        var fn = gridApi.getDisplayedRowAtIndex(groups[g].s);
-        var ln = gridApi.getDisplayedRowAtIndex(groups[g].e);
-        if (!fn || !ln) continue;
-        var top = Math.max(0, fn.rowTop - scrollTop);
-        var bot = Math.min(vpRect.height, (ln.rowTop + ln.rowHeight) - scrollTop);
-        if (bot <= top) continue;
+        // 将屏幕坐标转换为 overlay 内部坐标（overlay 覆盖整个 viewport）
+        var relTop = groups[g].top - vpRect.top;
+        var relBottom = groups[g].bottom - vpRect.top;
+        // 裁剪到 viewport 范围内
+        relTop = Math.max(0, relTop);
+        relBottom = Math.min(vpRect.height, relBottom);
+        if (relBottom <= relTop) continue;
         var d = document.createElement('div');
-        d.style.cssText = 'position:absolute;top:' + top + 'px;left:0;width:100%;height:' + (bot - top) + 'px;border:2px solid rgba(217,119,6,0.7);border-radius:4px;pointer-events:none;box-sizing:border-box;';
+        d.style.cssText = 'position:absolute;top:' + relTop + 'px;left:0;width:100%;height:' + (relBottom - relTop) + 'px;border:2px solid rgba(217,119,6,0.7);border-radius:4px;pointer-events:none;box-sizing:border-box;';
         overlay.appendChild(d);
     }
     if (overlay.children.length === 0) overlay.remove();
