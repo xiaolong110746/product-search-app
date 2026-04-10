@@ -1324,6 +1324,8 @@ function addKeyword(keyword, position = null) {
     cursorPosition = insertPos + 1;
     renderSearchTags();
     triggerSearch();
+    // 新标签添加后，自动滚动到该标签的第一个匹配行
+    setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
 }
 
 function removeKeyword(idx) {
