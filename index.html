@@ -129,10 +129,17 @@
 
         /* 标签悬停/自动高亮行闪烁动画 */
         @keyframes rowFlash {
-            0%, 100% { background-color: rgba(251, 191, 36, 0.15) !important; }
-            50% { background-color: rgba(251, 191, 36, 0.55) !important; }
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
         }
-        .ag-theme-alpine .ag-row.row-highlight-by-tag { animation: rowFlash 1s ease-in-out infinite; }
+        .ag-theme-alpine .ag-row.row-highlight-by-tag::after {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; top: 0; bottom: 0;
+            background-color: rgba(251, 191, 36, 0.45);
+            animation: rowFlash 1s ease-in-out infinite;
+            pointer-events: none;
+        }
 
         .highlight-text { background-color: #fef08a; color: #854d0e; padding: 0 4px; border-radius: 2px; font-weight: bold; }
         
@@ -1333,7 +1340,7 @@ function addKeyword(keyword, position = null) {
     // 新标签添加后，自动闪烁高亮并滚动到该标签的第一个匹配行
     autoHighlightKeywords.add(keyword);
     if (gridApi) gridApi.redrawRows();
- setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+    setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
     setTimeout(() => {
         autoHighlightKeywords.delete(keyword);
         if (gridApi) gridApi.redrawRows();
