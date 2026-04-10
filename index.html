@@ -127,8 +127,12 @@
         .ag-theme-alpine .ag-row-selected:hover { background-color: #bfdbfe !important; }
         .ag-theme-alpine .ag-row:hover { background-color: #f1f5f9; }
 
-        /* 标签悬停行高亮：悬停某个标签时，其匹配行显示更深的背景色 */
-        .ag-theme-alpine .ag-row.row-highlight-by-tag { background-color: rgba(251, 191, 36, 0.5) !important; transition: background-color 0.15s ease; }
+        /* 标签悬停/自动高亮行闪烁动画 */
+        @keyframes rowFlash {
+            0%, 100% { background-color: rgba(251, 191, 36, 0.15) !important; }
+            50% { background-color: rgba(251, 191, 36, 0.55) !important; }
+        }
+        .ag-theme-alpine .ag-row.row-highlight-by-tag { animation: rowFlash 1s ease-in-out infinite; }
 
         .highlight-text { background-color: #fef08a; color: #854d0e; padding: 0 4px; border-radius: 2px; font-weight: bold; }
         
@@ -627,6 +631,7 @@ let activeMobileKeyword = null; // 手机端点击激活的标签关键字
 let hoverScrollTimer = null; // 悬停延迟滚动定时器
 let smoothScrollTarget = null; // 当前平滑滚动目标 scrollTop，用于中断检测
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
+const autoHighlightKeywords = new Set(); // 自动高亮关键字集合（新标签添加后闪烁5秒，各自独立计时）
 const TAG_COLORS = [
     { bg: 'linear-gradient(135deg, #f87171, #ef4444)', text: '#ffffff', shadow: 'rgba(239,68,68,0.25)' },
     { bg: 'linear-gradient(135deg, #60a5fa, #3b82f6)', text: '#ffffff', shadow: 'rgba(59,130,246,0.25)' },
@@ -1035,14 +1040,15 @@ const gridOptions = {
     rowData: [],
     defaultColDef: { resizable: true, sortable: true },
     getRowClass: function(params) {
-        // 同时支持桌面端鼠标悬停和手机端点击激活
-        const activeKw = hoveredKeyword || activeMobileKeyword;
-        if (!activeKw || !params.data) return '';
+        if (!params.data) return '';
         const item = params.data;
-        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(activeKw));
-        const hasPinyin = item.namePinyin && item.namePinyin.includes(activeKw);
-        if (hasText || hasPinyin) {
-            return 'row-highlight-by-tag';
+        // 合并所有需要高亮的关键字：鼠标悬停 / 手机激活 / 自动高亮
+        const activeKw = hoveredKeyword || activeMobileKeyword;
+        const kwToCheck = activeKw ? [activeKw, ...autoHighlightKeywords] : [...autoHighlightKeywords];
+        for (const kw of kwToCheck) {
+            const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+            const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+            if (hasText || hasPinyin) return 'row-highlight-by-tag';
         }
         return '';
     },
@@ -1324,14 +1330,21 @@ function addKeyword(keyword, position = null) {
     cursorPosition = insertPos + 1;
     renderSearchTags();
     triggerSearch();
-    // 新标签添加后，自动滚动到该标签的第一个匹配行
-    setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+    // 新标签添加后，自动闪烁高亮并滚动到该标签的第一个匹配行
+    autoHighlightKeywords.add(keyword);
+    if (gridApi) gridApi.redrawRows();
+ setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+    setTimeout(() => {
+        autoHighlightKeywords.delete(keyword);
+        if (gridApi) gridApi.redrawRows();
+    }, 5000);
 }
 
 function removeKeyword(idx) {
     if (idx < 0 || idx >= currentKeywords.length) return;
     // 重置悬停状态，防止删除后表格残留高亮
     hoveredKeyword = null;
+    autoHighlightKeywords.delete(currentKeywords[idx]);
     currentKeywords.splice(idx, 1);
     if (cursorPosition > idx) cursorPosition--;
     renderSearchTags();
