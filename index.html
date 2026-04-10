@@ -139,6 +139,25 @@
             background-color: rgba(251, 191, 36, 0.45);
             animation: rowFlash 1s ease-in-out infinite;
             pointer-events: none;
+            z-index: 1;
+        }
+        /* 高亮合并矩形边框 - 左右边框（所有高亮行） */
+        .ag-theme-alpine .ag-row.row-highlight-by-tag::before {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; top: 0; bottom: 0;
+            border-left: 2px solid rgba(217, 119, 6, 0.7);
+            border-right: 2px solid rgba(217, 119, 6, 0.7);
+            pointer-events: none;
+            z-index: 2;
+        }
+        /* 首行上边框 */
+        .ag-theme-alpine .ag-row.row-highlight-by-tag.hl-group-first::before {
+            border-top: 2px solid rgba(217, 119, 6, 0.7);
+        }
+        /* 末行下边框 */
+        .ag-theme-alpine .ag-row.row-highlight-by-tag.hl-group-last::before {
+            border-bottom: 2px solid rgba(217, 119, 6, 0.7);
         }
 
         .highlight-text { background-color: #fef08a; color: #854d0e; padding: 0 4px; border-radius: 2px; font-weight: bold; }
@@ -709,95 +728,6 @@ function keywordHasMatch(kw) {
     return (keywordMatchCount[kw] || 0) > 0;
 }
 
-// ==========================================
-// 高亮行分组边框覆盖层
-// ==========================================
-let _overlayScheduled = false;
-function scheduleOverlayUpdate() {
-    if (_overlayScheduled) return;
-    _overlayScheduled = true;
-    requestAnimationFrame(function() {
-        _overlayScheduled = false;
-        updateHighlightOverlay();
-    });
-}
-
-function updateHighlightOverlay() {
-    if (!gridApi) return;
-    var gridEl = document.getElementById('myGrid');
-    var bodyViewport = gridEl.querySelector('.ag-body-viewport');
-    if (!bodyViewport) return;
-
-    // 先清除可能残留的旧 overlay（之前挂在 #myGrid 下的）
-    var oldOverlay = document.getElementById('highlightOverlay');
-    if (oldOverlay && oldOverlay.parentElement && oldOverlay.parentElement !== bodyViewport) oldOverlay.remove();
-
-    var activeKw = hoveredKeyword || activeMobileKeyword;
-    if (!activeKw && autoHighlightKeywords.size === 0) {
-        var o = document.getElementById('highlightOverlay');
-        if (o) o.remove();
-        return;
-    }
-    // 确保 bodyViewport 是定位参考元素
-    if (getComputedStyle(bodyViewport).position === 'static') {
-        bodyViewport.style.position = 'relative';
-    }
-    var vpRect = bodyViewport.getBoundingClientRect();
-
-    var overlay = document.getElementById('highlightOverlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'highlightOverlay';
-        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;overflow:hidden;';
-        bodyViewport.appendChild(overlay);
-    }
-
-    // 用 DOM 查询所有高亮行，直接用 getBoundingClientRect 获取真实视觉位置
-    var highlightedRows = bodyViewport.querySelectorAll('.ag-row.row-highlight-by-tag');
-    if (highlightedRows.length === 0) {
-        overlay.remove();
-        return;
-    }
-
-    // 按视觉位置排序（getBoundingClientRect.top），然后将相邻行分组
-    var rowInfos = [];
-    for (var r = 0; r < highlightedRows.length; r++) {
-        var rowEl = highlightedRows[r];
-        var rowRect = rowEl.getBoundingClientRect();
-        rowInfos.push({ top: rowRect.top, bottom: rowRect.bottom });
-    }
-    rowInfos.sort(function(a, b) { return a.top - b.top; });
-
-    // 分组：连续的行（上一行 bottom ≈ 下一行 top）合并为一组
-    var groups = [];
-    var curGroup = { top: rowInfos[0].top, bottom: rowInfos[0].bottom };
-    for (var j = 1; j < rowInfos.length; j++) {
-        // 允许 2px 误差（行间距、子像素渲染）
-        if (Math.abs(curGroup.bottom - rowInfos[j].top) < 2) {
-            curGroup.bottom = rowInfos[j].bottom;
-        } else {
-            groups.push(curGroup);
-            curGroup = { top: rowInfos[j].top, bottom: rowInfos[j].bottom };
-        }
-    }
-    groups.push(curGroup);
-
-    overlay.innerHTML = '';
-    for (var g = 0; g < groups.length; g++) {
-        // 将屏幕坐标转换为 overlay 内部坐标（overlay 覆盖整个 viewport）
-        var relTop = groups[g].top - vpRect.top;
-        var relBottom = groups[g].bottom - vpRect.top;
-        // 裁剪到 viewport 范围内
-        relTop = Math.max(0, relTop);
-        relBottom = Math.min(vpRect.height, relBottom);
-        if (relBottom <= relTop) continue;
-        var d = document.createElement('div');
-        d.style.cssText = 'position:absolute;top:' + relTop + 'px;left:0;width:100%;height:' + (relBottom - relTop) + 'px;border:2px solid rgba(217,119,6,0.7);border-radius:4px;pointer-events:none;box-sizing:border-box;';
-        overlay.appendChild(d);
-    }
-    if (overlay.children.length === 0) overlay.remove();
-}
-
 // 存储键名
 const STORAGE_KEY = 'product_query_excel_data';
 
@@ -1141,12 +1071,23 @@ const gridOptions = {
         // 合并所有需要高亮的关键字：鼠标悬停 / 手机激活 / 自动高亮
         const activeKw = hoveredKeyword || activeMobileKeyword;
         const kwToCheck = activeKw ? [activeKw, ...autoHighlightKeywords] : [...autoHighlightKeywords];
-        for (const kw of kwToCheck) {
-            const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
-            const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
-            if (hasText || hasPinyin) return 'row-highlight-by-tag';
+        if (kwToCheck.length === 0) return '';
+        // 检查当前行是否匹配
+        function isMatched(data) {
+            return kwToCheck.some(kw =>
+                Object.values(data).some(v => String(v).toLowerCase().includes(kw)) ||
+                (data.namePinyin && data.namePinyin.includes(kw))
+            );
         }
-        return '';
+        if (!isMatched(item)) return '';
+        // 标记组的首行和末行（用于绘制合并矩形边框）
+        const classes = ['row-highlight-by-tag'];
+        const idx = params.node.rowIndex;
+        const prev = gridApi.getDisplayedRowAtIndex(idx - 1);
+        const next = gridApi.getDisplayedRowAtIndex(idx + 1);
+        if (!prev || !prev.data || !isMatched(prev.data)) classes.push('hl-group-first');
+        if (!next || !next.data || !isMatched(next.data)) classes.push('hl-group-last');
+        return classes.join(' ');
     },
     rowSelection: 'single',
     suppressRowClickSelection: false,
@@ -2692,15 +2633,6 @@ function initApp() {
     
     // 初始化右键菜单
     initContextMenu();
-    
-    // 初始化高亮行分组边框覆盖层（监听行 class 变化 + 滚动 + 窗口大小变化）
-    var hlViewport = document.querySelector('#myGrid .ag-body-viewport');
-    if (hlViewport) {
-        var hlObserver = new MutationObserver(function() { scheduleOverlayUpdate(); });
-        hlObserver.observe(hlViewport, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
-        hlViewport.addEventListener('scroll', function() { scheduleOverlayUpdate(); });
-    }
-    window.addEventListener('resize', function() { scheduleOverlayUpdate(); });
     
     // 尝试加载已保存的数据
     const savedData = loadData();
