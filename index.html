@@ -1387,9 +1387,11 @@ function addKeyword(keyword, position = null) {
 
 function removeKeyword(idx) {
     if (idx < 0 || idx >= currentKeywords.length) return;
-    // 重置悬停状态，防止删除后表格残留高亮
+    // 重置高亮状态，防止删除后表格残留闪烁
     hoveredKeyword = null;
-    autoHighlightKeywords.delete(currentKeywords[idx]);
+    const removedKw = currentKeywords[idx];
+    if (activeMobileKeyword === removedKw) activeMobileKeyword = null;
+    autoHighlightKeywords.delete(removedKw);
     currentKeywords.splice(idx, 1);
     if (cursorPosition > idx) cursorPosition--;
     renderSearchTags();
@@ -2040,6 +2042,8 @@ function clearSearch() {
     }
     
     hoveredKeyword = null;
+    activeMobileKeyword = null;
+    autoHighlightKeywords.clear();
     currentKeywords = [];
     cursorPosition = 0;
     renderSearchTags();
@@ -2047,7 +2051,7 @@ function clearSearch() {
     currentSearchText = '';
     lastSearchedKeywordsStr = '';
     lastFilteredCount = allData.length;
-    if (gridApi) gridApi.setGridOption('rowData', allData);
+    if (gridApi) { gridApi.setGridOption('rowData', allData); gridApi.redrawRows(); }
     updateCount(allData.length);
     input.focus();
     hideStatus();
@@ -2314,10 +2318,14 @@ function clearAllFilters() {
     
     if (tagIds.length === 0) {
         // 没有标签，直接执行
+        hoveredKeyword = null;
+        activeMobileKeyword = null;
+        autoHighlightKeywords.clear();
         input.value = '';
         currentSearchText = '';
         if (gridApi) {
             gridApi.setGridOption('rowData', allData);
+            gridApi.redrawRows();
         }
         updateCount(allData.length);
         lastFilteredCount = allData.length;
@@ -2328,6 +2336,10 @@ function clearAllFilters() {
     
     // 先播放动画
     animateAllTagsRemove(tagIds).then(() => {
+        // 重置所有高亮状态
+        hoveredKeyword = null;
+        activeMobileKeyword = null;
+        autoHighlightKeywords.clear();
         // 动画完成后清除搜索关键字
         currentKeywords = [];
         cursorPosition = 0;
@@ -2343,6 +2355,7 @@ function clearAllFilters() {
             colState.forEach(col => { if (col.sort) col.sort = null; });
             gridApi.applyColumnState({ state: colState });
             gridApi.setGridOption('rowData', allData);
+            gridApi.redrawRows();
         }
         
         // 更新显示
@@ -2371,8 +2384,10 @@ function clearSearchOnly(skipToast = false, withAnimation = true) {
 }
 
 function executeClearSearch(skipToast) {
-    // 重置悬停状态
+    // 重置所有高亮状态
     hoveredKeyword = null;
+    activeMobileKeyword = null;
+    autoHighlightKeywords.clear();
     // 清除所有搜索关键字标签
     currentKeywords = [];
     cursorPosition = 0;
