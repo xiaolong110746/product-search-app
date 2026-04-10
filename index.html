@@ -679,9 +679,13 @@ function scheduleRedraw(delay) {
 // 同步闪烁系统：用 JS 定时器统一切换 .flash-on 类，确保所有高亮行同步闪烁
 let flashTimer = null;
 let flashOn = false;
+// 统计当前有匹配结果的标签数量（用于判断是否需要行闪烁）
+function getEffectiveKeywordCount() {
+    return currentKeywords.filter(kw => keywordHasMatch(kw)).length;
+}
 function isAnyHighlightActive() {
-    // 单标签时关闭所有行闪烁（文本高亮保留）
-    if (currentKeywords.length < 2) return false;
+    // 有效标签不足2个时关闭所有行闪烁（文本高亮保留）
+    if (getEffectiveKeywordCount() < 2) return false;
     return hoveredKeyword || activeMobileKeyword || autoHighlightKeywords.size > 0;
 }
 function syncFlashState() {
@@ -1144,8 +1148,8 @@ const gridOptions = {
     defaultColDef: { resizable: true, sortable: true },
     getRowClass: function(params) {
         if (!params.data) return '';
-        // 单标签时不高亮整行（文本高亮保留）
-        if (currentKeywords.length < 2) return '';
+        // 有效标签不足2个时不高亮整行（文本高亮保留）
+        if (getEffectiveKeywordCount() < 2) return '';
         const item = params.data;
         // 合并所有需要高亮的关键字：鼠标悬停 / 手机激活 / 自动高亮
         const activeKw = hoveredKeyword || activeMobileKeyword;
@@ -1443,8 +1447,8 @@ function addKeyword(keyword, position = null) {
     keyword = keyword.trim().toLowerCase();
     if (!keyword) return;
     if (currentKeywords.includes(keyword)) {
-        // 重复标签：标签数>=2 时闪烁提醒用户（单标签时受需求1约束不闪烁）
-        if (currentKeywords.length >= 2) {
+        // 重复标签：有效标签数>=2 时闪烁提醒用户（不足时受需求1约束不闪烁）
+        if (getEffectiveKeywordCount() >= 2) {
             autoHighlightKeywords.add(keyword);
             syncFlashState();
             if (gridApi) gridApi.redrawRows();
@@ -1462,15 +1466,17 @@ function addKeyword(keyword, position = null) {
     renderSearchTags();
     triggerSearch();
     // 新标签添加后，自动闪烁高亮并滚动到该标签的第一个匹配行
-    autoHighlightKeywords.add(keyword);
-    syncFlashState();
-    if (gridApi) gridApi.redrawRows();
-    setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
-    setTimeout(() => {
-        autoHighlightKeywords.delete(keyword);
+    if (getEffectiveKeywordCount() >= 2) {
+        autoHighlightKeywords.add(keyword);
         syncFlashState();
         if (gridApi) gridApi.redrawRows();
-    }, 5000);
+        setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+        setTimeout(() => {
+            autoHighlightKeywords.delete(keyword);
+            syncFlashState();
+            if (gridApi) gridApi.redrawRows();
+        }, 5000);
+    }
 }
 
 function removeKeyword(idx) {
