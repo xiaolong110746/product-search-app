@@ -127,19 +127,19 @@
         .ag-theme-alpine .ag-row-selected:hover { background-color: #bfdbfe !important; }
         .ag-theme-alpine .ag-row:hover { background-color: #f1f5f9; }
 
-        /* 标签悬停/自动高亮行闪烁动画 */
-        @keyframes rowFlash {
-            0%, 100% { opacity: 0; }
-            50% { opacity: 1; }
-        }
+        /* 标签悬停/自动高亮行闪烁效果（由 JS 统一控制 .flash-on 类实现同步闪烁） */
         .ag-theme-alpine .ag-row.row-highlight-by-tag::after {
             content: '';
             position: absolute;
             left: 0; right: 0; top: 0; bottom: 0;
             background-color: rgba(251, 191, 36, 0.45);
-            animation: rowFlash 1s ease-in-out infinite;
+            opacity: 0;
+            transition: opacity 0.25s ease-in-out;
             pointer-events: none;
             z-index: 1;
+        }
+        .flash-on .ag-row.row-highlight-by-tag::after {
+            opacity: 1;
         }
         /* 高亮合并矩形边框 - 左右边框（所有高亮行） */
         .ag-theme-alpine .ag-row.row-highlight-by-tag::before {
@@ -672,8 +672,40 @@ function scheduleRedraw(delay) {
     redrawDebounceTimer = setTimeout(() => {
         if (gridApi) gridApi.redrawRows();
         redrawDebounceTimer = null;
+        syncFlashState();
     }, delay);
 }
+
+// 同步闪烁系统：用 JS 定时器统一切换 .flash-on 类，确保所有高亮行同步闪烁
+let flashTimer = null;
+let flashOn = false;
+function isAnyHighlightActive() {
+    return hoveredKeyword || activeMobileKeyword || autoHighlightKeywords.size > 0;
+}
+function syncFlashState() {
+    if (isAnyHighlightActive()) startFlashTimer();
+    else stopFlashTimer();
+}
+function startFlashTimer() {
+    if (flashTimer) return;
+    flashOn = false;
+    flashTimer = setInterval(() => {
+        if (!isAnyHighlightActive()) { stopFlashTimer(); return; }
+        flashOn = !flashOn;
+        const gridEl = document.getElementById('myGrid');
+        if (gridEl) {
+            if (flashOn) gridEl.classList.add('flash-on');
+            else gridEl.classList.remove('flash-on');
+        }
+    }, 500);
+}
+function stopFlashTimer() {
+    if (flashTimer) { clearInterval(flashTimer); flashTimer = null; }
+    flashOn = false;
+    const gridEl = document.getElementById('myGrid');
+    if (gridEl) gridEl.classList.remove('flash-on');
+}
+
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
 const autoHighlightKeywords = new Set(); // 自动高亮关键字集合（新标签添加后闪烁5秒，各自独立计时）
 const TAG_COLORS = [
@@ -1387,10 +1419,12 @@ function addKeyword(keyword, position = null) {
     triggerSearch();
     // 新标签添加后，自动闪烁高亮并滚动到该标签的第一个匹配行
     autoHighlightKeywords.add(keyword);
+    syncFlashState();
     if (gridApi) gridApi.redrawRows();
     setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
     setTimeout(() => {
         autoHighlightKeywords.delete(keyword);
+        syncFlashState();
         if (gridApi) gridApi.redrawRows();
     }, 5000);
 }
@@ -1406,6 +1440,7 @@ function removeKeyword(idx) {
     if (cursorPosition > idx) cursorPosition--;
     renderSearchTags();
     triggerSearch();
+    syncFlashState();
     input.focus();
 }
 
@@ -1567,6 +1602,7 @@ function toggleMobileTagHighlight(kw, tagEl) {
         activeMobileKeyword = null;
         tagEl.classList.remove('tag-active');
         if (gridApi) gridApi.redrawRows();
+        syncFlashState();
     } else {
         // 切换到新标签的高亮
         // 先取消旧的
@@ -1574,6 +1610,7 @@ function toggleMobileTagHighlight(kw, tagEl) {
         activeMobileKeyword = kw;
         tagEl.classList.add('tag-active');
         if (gridApi) gridApi.redrawRows();
+        syncFlashState();
         // 延迟滚动到第一个匹配行
         setTimeout(() => scrollToFirstMatchedRow(kw), 100);
     }
@@ -2055,6 +2092,7 @@ function clearSearch() {
     hoveredKeyword = null;
     activeMobileKeyword = null;
     autoHighlightKeywords.clear();
+    stopFlashTimer();
     currentKeywords = [];
     cursorPosition = 0;
     renderSearchTags();
@@ -2332,6 +2370,7 @@ function clearAllFilters() {
         hoveredKeyword = null;
         activeMobileKeyword = null;
         autoHighlightKeywords.clear();
+        stopFlashTimer();
         input.value = '';
         currentSearchText = '';
         if (gridApi) {
@@ -2351,6 +2390,7 @@ function clearAllFilters() {
         hoveredKeyword = null;
         activeMobileKeyword = null;
         autoHighlightKeywords.clear();
+        stopFlashTimer();
         // 动画完成后清除搜索关键字
         currentKeywords = [];
         cursorPosition = 0;
@@ -2399,6 +2439,7 @@ function executeClearSearch(skipToast) {
     hoveredKeyword = null;
     activeMobileKeyword = null;
     autoHighlightKeywords.clear();
+    stopFlashTimer();
     // 清除所有搜索关键字标签
     currentKeywords = [];
     cursorPosition = 0;
