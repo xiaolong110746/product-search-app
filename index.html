@@ -163,8 +163,8 @@
         .ag-theme-alpine [class*="pinned-left"] .ag-row.row-highlight-by-tag::before {
             border-right: none;
         }
-        /* 滚动列区域不显示左边框（与固定列区域互补，左边框由固定列提供） */
-        .ag-theme-alpine .ag-body-viewport .ag-row.row-highlight-by-tag::before {
+        /* 滚动列区域：仅当存在固定列时才去掉左边框（避免交界处重复；手机无固定列则两边框都保留） */
+        .ag-theme-alpine .ag-body-viewport:has([class*="pinned-left"]) [class*="center-cols"] .ag-row.row-highlight-by-tag::before {
             border-left: none;
         }
 
