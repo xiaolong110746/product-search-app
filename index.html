@@ -680,6 +680,8 @@ function scheduleRedraw(delay) {
 let flashTimer = null;
 let flashOn = false;
 function isAnyHighlightActive() {
+    // 单标签时关闭所有行闪烁（文本高亮保留）
+    if (currentKeywords.length < 2) return false;
     return hoveredKeyword || activeMobileKeyword || autoHighlightKeywords.size > 0;
 }
 function syncFlashState() {
@@ -1142,6 +1144,8 @@ const gridOptions = {
     defaultColDef: { resizable: true, sortable: true },
     getRowClass: function(params) {
         if (!params.data) return '';
+        // 单标签时不高亮整行（文本高亮保留）
+        if (currentKeywords.length < 2) return '';
         const item = params.data;
         // 合并所有需要高亮的关键字：鼠标悬停 / 手机激活 / 自动高亮
         const activeKw = hoveredKeyword || activeMobileKeyword;
@@ -1327,6 +1331,7 @@ function handleFileUpload(event) {
     if (!file) return;
     
     // 先清除搜索和筛选
+    if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
     currentKeywords = [];
     cursorPosition = 0;
     renderSearchTags();
@@ -1394,6 +1399,7 @@ const statusText = document.getElementById('statusText');
 
 let notFoundTimer = null;
 let searchDebounceTimer = null;
+let autoTagTimer = null; // 输入停顿5秒后自动创建标签的定时器
 let currentKeywords = []; // 当前搜索关键字数组
 let cursorPosition = 0; // 虚拟光标位置：0~N，表示光标在第 cursorPosition 个标签之前
 
@@ -1436,7 +1442,20 @@ document.getElementById('searchContainer').addEventListener('click', handleConta
 function addKeyword(keyword, position = null) {
     keyword = keyword.trim().toLowerCase();
     if (!keyword) return;
-    if (currentKeywords.includes(keyword)) return;
+    if (currentKeywords.includes(keyword)) {
+        // 重复标签：标签数>=2 时闪烁提醒用户（单标签时受需求1约束不闪烁）
+        if (currentKeywords.length >= 2) {
+            autoHighlightKeywords.add(keyword);
+            syncFlashState();
+            if (gridApi) gridApi.redrawRows();
+            setTimeout(() => {
+                autoHighlightKeywords.delete(keyword);
+                syncFlashState();
+                if (gridApi) gridApi.redrawRows();
+            }, 2000);
+        }
+        return;
+    }
     const insertPos = position !== null ? position : cursorPosition;
     currentKeywords.splice(insertPos, 0, keyword);
     cursorPosition = insertPos + 1;
@@ -1471,6 +1490,7 @@ function removeKeyword(idx) {
 
 function clearAllKeywords() {
     hoveredKeyword = null;
+    if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
     currentKeywords = [];
     cursorPosition = 0;
     renderSearchTags();
@@ -1785,6 +1805,7 @@ function initScannerLogic() {
         }
 
         if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+        if (autoTagTimer) clearTimeout(autoTagTimer);
 
         // IME 组合中只更新样式，不做搜索和标签拆分
         if (isComposing) {
@@ -1817,6 +1838,17 @@ function initScannerLogic() {
             filterData(query);
             searchDebounceTimer = null;
         }, 256);
+
+        // 输入停顿5秒后自动创建标签
+        autoTagTimer = setTimeout(() => {
+            autoTagTimer = null;
+            const autoVal = input.value.trim();
+            if (autoVal && !scannerIsScanning && !isComposing) {
+                input.value = '';
+                updateInputStyle();
+                addKeyword(autoVal);
+            }
+        }, 5000);
         updateInputStyle();
     });
 
@@ -2118,6 +2150,7 @@ function clearSearch() {
     activeMobileKeyword = null;
     autoHighlightKeywords.clear();
     stopFlashTimer();
+    if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
     currentKeywords = [];
     cursorPosition = 0;
     renderSearchTags();
@@ -2416,6 +2449,7 @@ function clearAllFilters() {
         activeMobileKeyword = null;
         autoHighlightKeywords.clear();
         stopFlashTimer();
+        if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
         // 动画完成后清除搜索关键字
         currentKeywords = [];
         cursorPosition = 0;
@@ -2465,6 +2499,7 @@ function executeClearSearch(skipToast) {
     activeMobileKeyword = null;
     autoHighlightKeywords.clear();
     stopFlashTimer();
+    if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
     // 清除所有搜索关键字标签
     currentKeywords = [];
     cursorPosition = 0;
@@ -2668,6 +2703,7 @@ function clearSavedData() {
     clearData();
     
     // 清除搜索关键字
+    if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
     currentKeywords = [];
     cursorPosition = 0;
     renderSearchTags();
