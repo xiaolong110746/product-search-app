@@ -137,7 +137,6 @@
             position: absolute;
             left: 0; right: 0; top: 0; bottom: 0;
             background-color: rgba(251, 191, 36, 0.45);
-            border: 2px solid rgba(217, 119, 6, 0.7);
             animation: rowFlash 1s ease-in-out infinite;
             pointer-events: none;
         }
@@ -708,6 +707,82 @@ function getTagColor(keyword) {
 // 判断关键字在当前数据中是否有匹配结果
 function keywordHasMatch(kw) {
     return (keywordMatchCount[kw] || 0) > 0;
+}
+
+// ==========================================
+// 高亮行分组边框覆盖层
+// ==========================================
+let _overlayScheduled = false;
+function scheduleOverlayUpdate() {
+    if (_overlayScheduled) return;
+    _overlayScheduled = true;
+    requestAnimationFrame(function() {
+        _overlayScheduled = false;
+        updateHighlightOverlay();
+    });
+}
+
+function updateHighlightOverlay() {
+    if (!gridApi) return;
+    var activeKw = hoveredKeyword || activeMobileKeyword;
+    if (!activeKw && autoHighlightKeywords.size === 0) {
+        var o = document.getElementById('highlightOverlay');
+        if (o) o.remove();
+        return;
+    }
+    var gridEl = document.getElementById('myGrid');
+    var bodyViewport = gridEl.querySelector('.ag-body-viewport');
+    if (!gridEl || !bodyViewport) return;
+    var vpRect = bodyViewport.getBoundingClientRect();
+    var gridRect = gridEl.getBoundingClientRect();
+    var scrollTop = bodyViewport.scrollTop;
+    var overlay = document.getElementById('highlightOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'highlightOverlay';
+        overlay.style.cssText = 'position:absolute;pointer-events:none;z-index:5;overflow:hidden;';
+        gridEl.appendChild(overlay);
+    }
+    overlay.style.top = (vpRect.top - gridRect.top) + 'px';
+    overlay.style.left = (vpRect.left - gridRect.left) + 'px';
+    overlay.style.width = vpRect.width + 'px';
+    overlay.style.height = vpRect.height + 'px';
+    var first = gridApi.getFirstDisplayedRow();
+    var last = gridApi.getLastDisplayedRow();
+    var kws = activeKw ? [activeKw].concat(Array.from(autoHighlightKeywords)) : Array.from(autoHighlightKeywords);
+    var groups = [];
+    var inGroup = false, groupStart = -1;
+    for (var i = first; i <= last; i++) {
+        var node = gridApi.getDisplayedRowAtIndex(i);
+        if (!node || !node.data) continue;
+        var item = node.data;
+        var hl = false;
+        for (var k = 0; k < kws.length; k++) {
+            var kw = kws[k];
+            if (Object.values(item).some(function(v) { return String(v).toLowerCase().includes(kw); }) ||
+                (item.namePinyin && item.namePinyin.includes(kw))) { hl = true; break; }
+        }
+        if (hl) {
+            if (!inGroup) { groupStart = i; inGroup = true; }
+        } else if (inGroup) {
+            groups.push({ s: groupStart, e: i - 1 });
+            inGroup = false;
+        }
+    }
+    if (inGroup) groups.push({ s: groupStart, e: last });
+    overlay.innerHTML = '';
+    for (var g = 0; g < groups.length; g++) {
+        var fn = gridApi.getDisplayedRowAtIndex(groups[g].s);
+        var ln = gridApi.getDisplayedRowAtIndex(groups[g].e);
+        if (!fn || !ln) continue;
+        var top = Math.max(0, fn.rowTop - scrollTop);
+        var bot = Math.min(vpRect.height, (ln.rowTop + ln.rowHeight) - scrollTop);
+        if (bot <= top) continue;
+        var d = document.createElement('div');
+        d.style.cssText = 'position:absolute;top:' + top + 'px;left:0;width:100%;height:' + (bot - top) + 'px;border:2px solid rgba(217,119,6,0.7);border-radius:4px;pointer-events:none;box-sizing:border-box;';
+        overlay.appendChild(d);
+    }
+    if (overlay.children.length === 0) overlay.remove();
 }
 
 // 存储键名
@@ -2604,6 +2679,15 @@ function initApp() {
     
     // 初始化右键菜单
     initContextMenu();
+    
+    // 初始化高亮行分组边框覆盖层（监听行 class 变化 + 滚动 + 窗口大小变化）
+    var hlViewport = document.querySelector('#myGrid .ag-body-viewport');
+    if (hlViewport) {
+        var hlObserver = new MutationObserver(function() { scheduleOverlayUpdate(); });
+        hlObserver.observe(hlViewport, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+        hlViewport.addEventListener('scroll', function() { scheduleOverlayUpdate(); });
+    }
+    window.addEventListener('resize', function() { scheduleOverlayUpdate(); });
     
     // 尝试加载已保存的数据
     const savedData = loadData();
