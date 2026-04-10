@@ -663,7 +663,17 @@ let lastFilteredCount = 0; // 记录上次筛选结果数量
 let hoveredKeyword = null; // 当前鼠标悬停的标签关键字
 let activeMobileKeyword = null; // 手机端点击激活的标签关键字
 let hoverScrollTimer = null; // 悬停延迟滚动定时器
+let redrawDebounceTimer = null; // 高亮重绘防抖定时器（避免标签间快速切换时重复 redrawRows）
 let smoothScrollTarget = null; // 当前平滑滚动目标 scrollTop，用于中断检测
+
+// 防抖重绘行高亮：合并短时间内的多次 redrawRows 调用
+function scheduleRedraw(delay) {
+    if (redrawDebounceTimer) clearTimeout(redrawDebounceTimer);
+    redrawDebounceTimer = setTimeout(() => {
+        if (gridApi) gridApi.redrawRows();
+        redrawDebounceTimer = null;
+    }, delay);
+}
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
 const autoHighlightKeywords = new Set(); // 自动高亮关键字集合（新标签添加后闪烁5秒，各自独立计时）
 const TAG_COLORS = [
@@ -1482,7 +1492,9 @@ function createTagElement(kw, idx) {
     // ==========================================
     tag.addEventListener('mouseenter', function() {
         hoveredKeyword = kw;
-        if (gridApi) gridApi.redrawRows();
+        // 防抖重绘（50ms），快速在标签间移动时合并为一次 redrawRows
+        scheduleRedraw(50);
+        // 延迟滚动到该标签的第一个匹配行
         if (hoverScrollTimer) clearTimeout(hoverScrollTimer);
         hoverScrollTimer = setTimeout(() => {
             scrollToFirstMatchedRow(kw);
@@ -1491,13 +1503,12 @@ function createTagElement(kw, idx) {
     });
     tag.addEventListener('mouseleave', function() {
         hoveredKeyword = null;
-        if (gridApi) gridApi.redrawRows();
+        // 用更长的防抖（150ms），让鼠标快速滑过标签间隙时不触发清除，
+        // 只在真正离开所有标签后才清除高亮
+        scheduleRedraw(150);
+        // 取消待执行的滚动，但不中断已在进行的平滑滚动（避免跳回）
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
-        const vp = document.querySelector('#myGrid .ag-body-viewport');
-        if (vp && smoothScrollTarget !== null) {
-            vp.scrollTo(vp.scrollLeft, vp.scrollTop);
-            smoothScrollTarget = null;
-        }
+        smoothScrollTarget = null;
     });
 
     // ==========================================
