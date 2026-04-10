@@ -871,6 +871,8 @@ function base64ToArrayBuffer(base64) {
 class SmartHighlightRenderer {
     init(params) {
         this.eGui = document.createElement('span');
+        this._lastSearchText = null;
+        this._lastValue = null;
         this.refresh(params);
     }
 
@@ -878,6 +880,10 @@ class SmartHighlightRenderer {
 
     refresh(params) {
         const text = String(params.value || '');
+        // 搜索文本和单元格值都没变，跳过重绘（避免标签悬停 redrawRows 时不必要的刷新）
+        if (currentSearchText === this._lastSearchText && text === this._lastValue) return true;
+        this._lastSearchText = currentSearchText;
+        this._lastValue = text;
         const keywords = parseKeywords(currentSearchText);
         
         if (keywords.length === 0) {
@@ -953,6 +959,8 @@ class SmartHighlightRenderer {
 class NumericRenderer {
     init(params) {
         this.eGui = document.createElement('span');
+        this._lastSearchText = null;
+        this._lastValue = null;
         this.refresh(params);
     }
 
@@ -960,6 +968,10 @@ class NumericRenderer {
 
     refresh(params) {
         const value = params.value;
+        // 搜索文本和单元格值都没变，跳过重绘（避免标签悬停 redrawRows 时不必要的刷新）
+        if (currentSearchText === this._lastSearchText && value === this._lastValue) return true;
+        this._lastSearchText = currentSearchText;
+        this._lastValue = value;
         const keywords = parseKeywords(currentSearchText);
         
         if (value === null || value === undefined || value === '') {
@@ -1034,10 +1046,19 @@ class TagDotRenderer {
     init(params) {
         this.eGui = document.createElement('div');
         this.eGui.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:3px;height:100%;overflow:hidden;padding:0 4px;';
+        this._lastKeywordsStr = null;
+        this._lastDataId = null;
         this.refresh(params);
     }
     getGui() { return this.eGui; }
     refresh(params) {
+        // 关键字列表和行数据都没变，跳过重绘
+        const kwStr = currentKeywords.join(',');
+        const dataId = params.data ? (params.data.barcodeStrip || params.data.name) : null;
+        if (kwStr === this._lastKeywordsStr && dataId === this._lastDataId) return true;
+        this._lastKeywordsStr = kwStr;
+        this._lastDataId = dataId;
+
         const item = params.data;
         if (!item || !currentSearchText.trim()) {
             this.eGui.innerHTML = '';
