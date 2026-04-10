@@ -894,24 +894,28 @@ class SmartHighlightRenderer {
         // 多关键字高亮：逐个关键字查找并标记位置
         let highlighted = this.escapeHtml(text);
         const lowerText = text.toLowerCase();
-        
+        // 标记已通过文本匹配找到的关键字，后续对未匹配的关键字补充拼音匹配
+        const textMatchedKws = new Set();
+
         // 收集所有需要高亮的位置（避免重叠）
         let markPositions = [];
-        
+
         for (const kw of keywords) {
             if (!kw) continue;
             let idx = lowerText.indexOf(kw);
             while (idx !== -1) {
                 markPositions.push({ start: idx, end: idx + kw.length });
+                textMatchedKws.add(kw);
                 idx = lowerText.indexOf(kw, idx + kw.length);
             }
         }
 
-        // 如果没有直接文本匹配，尝试拼音匹配（仅商品名称列）
-        if (markPositions.length === 0 && params.colDef.field === 'name' && params.data && params.data._pinyinFull) {
+        // 对文本匹配失败的关键字，尝试拼音匹配（仅商品名称列）
+        // 这样"红河"文本匹配 + "rj"拼音匹配可以共存
+        if (params.colDef.field === 'name' && params.data && params.data._pinyinFull) {
             const pinyinFull = params.data._pinyinFull;
             for (const kw of keywords) {
-                if (!kw) continue;
+                if (!kw || textMatchedKws.has(kw)) continue;
                 let idx = pinyinFull.indexOf(kw);
                 while (idx !== -1) {
                     markPositions.push({ start: idx, end: idx + kw.length });
