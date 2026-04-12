@@ -75,37 +75,6 @@
             margin: 0; flex: 1; min-width: 0;
         }
         
-        /* 状态徽章样式 */
-        .status-badge {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 8px 18px; border-radius: 20px;
-            font-size: 1.1rem; font-weight: 600;
-            opacity: 0; visibility: hidden; 
-            transition: all 0.2s ease;
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 10;
-        }
-
-        .status-badge.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .status-badge.found {
-            background-color: #dcfce7;
-            color: #15803d;
-            box-shadow: 0 2px 8px rgba(21, 128, 61, 0.2);
-        }
-
-        .status-badge.notfound {
-            background-color: #fee2e2;
-            color: #dc2626;
-            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
-        }
-        
         .grid-container { flex: 1; min-height: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; width: 100%; }
         
         /* AG Grid 表格字体放大 */
@@ -169,7 +138,21 @@
         }
 
         .highlight-text { background-color: #fef08a; color: #854d0e; padding: 0 4px; border-radius: 2px; font-weight: bold; }
-        
+
+        /* 扫码按钮（桌面端隐藏，手机端显示） */
+        .scan-btn { display: none; }
+
+        /* 扫码覆盖层 */
+        .scan-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 99999; display: none; flex-direction: column; }
+        .scan-overlay.active { display: flex; }
+        .scan-overlay-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(0,0,0,0.8); color: #fff; font-size: 1rem; font-weight: 500; }
+        .scan-close-btn { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 4px 8px; line-height: 1; }
+        .scan-viewfinder { flex: 1; position: relative; overflow: hidden; }
+        .scan-viewfinder video { width: 100%; height: 100%; object-fit: cover; }
+        .scan-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 260px; height: 140px; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; }
+        .scan-crosshair::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); border-radius: 12px; }
+        .scan-hint { text-align: center; padding: 16px; color: rgba(255,255,255,0.8); font-size: 0.9rem; background: rgba(0,0,0,0.8); }
+
         .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 1rem; color: #64748b; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
         
         /* 提示信息样式 */
@@ -494,17 +477,23 @@
                 box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px rgba(156,163,175,0.4);
             }
 
-            /* 状态徽章 - 手机端移到搜索框内部右侧 */
-            .status-badge {
-                position: relative;
-                right: auto; top: auto;
-                transform: none;
-                padding: 5px 12px;
-                font-size: 0.85rem;
-                border-radius: 16px;
+            /* 扫码按钮 - 手机端显示 */
+            .scan-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                border: none;
+                background: var(--primary-color);
+                color: white;
+                font-size: 1.3rem;
+                cursor: pointer;
                 flex-shrink: 0;
-                gap: 0;
+                padding: 0;
             }
+            .scan-btn:active { background: #1d4ed8; }
 
             /* AG Grid 表格缩小 */
             .ag-theme-alpine { font-size: 14px !important; }
@@ -593,10 +582,7 @@
         <div id="searchContainer" class="search-container">
             <input type="text" id="searchInput" class="search-inline-input" placeholder="输入关键字模糊查询..." data-desktop-placeholder="扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询..." data-mobile-placeholder="输入关键字查询..." autofocus>
         </div>
-        <div id="statusBadge" class="status-badge">
-            <span id="iconSpan"></span>
-            <span id="statusText"></span>
-        </div>
+        <button id="scanBtn" class="scan-btn" onclick="startCameraScan()">📷</button>
     </div>
     
     <!-- 筛选状态提示区 -->
@@ -622,6 +608,20 @@
     <div class="info-box" id="infoBox">
         💡 点击「📂 导入 Excel」按钮导入商品数据，系统将自动记住您选择的文件。
     </div>
+</div>
+
+<!-- 扫码覆盖层 -->
+<div id="scanOverlay" class="scan-overlay">
+    <div class="scan-overlay-header">
+        <button class="scan-close-btn" onclick="stopCameraScan()">✕</button>
+        <span>扫描条形码</span>
+        <span style="width:32px"></span>
+    </div>
+    <div class="scan-viewfinder">
+        <video id="scanVideo" playsinline autoplay muted></video>
+        <div class="scan-crosshair"></div>
+    </div>
+    <div class="scan-hint">将条形码对准框内自动扫描</div>
 </div>
 
 <!-- 自定义右键菜单 -->
@@ -1350,7 +1350,6 @@ function handleFileUpload(event) {
     }
     // 隐藏筛选状态提示区
     document.getElementById('filterStatus').classList.remove('visible');
-    hideStatus();
     
     showToast('📖 正在读取文件...');
     
@@ -1398,10 +1397,6 @@ function handleFileUpload(event) {
 // 搜索与扫码逻辑
 // ==========================================
 const input = document.getElementById('searchInput');
-const badge = document.getElementById('statusBadge');
-const iconSpan = document.getElementById('iconSpan');
-const statusText = document.getElementById('statusText');
-
 let notFoundTimer = null;
 let searchDebounceTimer = null;
 let autoTagTimer = null; // 输入停顿5秒后自动创建标签的定时器
@@ -2106,7 +2101,6 @@ function filterData(query) {
         updateTagColors();
         gridApi.setGridOption('rowData', allData);
         lastFilteredCount = allData.length;
-        hideStatus();
         updateFilterStatus();
         return;
     }
@@ -2148,13 +2142,6 @@ function filterData(query) {
 
     gridApi.setGridOption('rowData', filtered);
     
-    // 实时显示找到的结果数量或未找到提示
-    if (filtered.length > 0) {
-        showFoundStatus(filtered.length);
-    } else {
-        showNotFoundStatus();
-    }
-    
     updateFilterStatus();
 }
 
@@ -2191,30 +2178,11 @@ function clearSearch() {
     if (gridApi) { gridApi.setGridOption('rowData', allData); gridApi.redrawRows(); }
     updateCount(allData.length);
     input.focus();
-    hideStatus();
     updateFilterStatus();
 }
 
 function autoSizeAll() { 
     if (gridApi) gridApi.autoSizeAllColumns(); 
-}
-
-function showFoundStatus(count) {
-    badge.classList.remove('notfound');
-    badge.classList.add('visible', 'found');
-    iconSpan.textContent = '';
-    statusText.textContent = `${count}`;
-}
-
-function showNotFoundStatus(query) {
-    badge.classList.remove('found');
-    badge.classList.add('visible', 'notfound');
-    iconSpan.textContent = '';
-    statusText.textContent = `0`;
-}
-
-function hideStatus() {
-    badge.classList.remove('visible');
 }
 
 // ==========================================
@@ -2467,7 +2435,6 @@ function clearAllFilters() {
         }
         updateCount(allData.length);
         lastFilteredCount = allData.length;
-        hideStatus();
         input.focus();
         return;
     }
@@ -2501,7 +2468,6 @@ function clearAllFilters() {
         // 更新显示
         updateCount(allData.length);
         lastFilteredCount = allData.length;
-        hideStatus();
         updateFilterStatus();
         input.focus();
         
@@ -2546,7 +2512,6 @@ function executeClearSearch(skipToast) {
     // 更新显示
     updateCount(allData.length);
     lastFilteredCount = allData.length;
-    hideStatus();
     updateFilterStatus();
     input.focus();
     
@@ -2694,6 +2659,90 @@ function hideContextMenu() {
 }
 
 // ==========================================
+// 摄像头条码扫描（手机端）
+// ==========================================
+let scanStream = null;
+let scanAnimFrame = null;
+let scanDetector = null;
+
+async function startCameraScan() {
+    if (!('BarcodeDetector' in window)) {
+        showToast('\u274c 当前浏览器不支持扫码，请使用 Chrome 或 Safari');
+        return;
+    }
+
+    const overlay = document.getElementById('scanOverlay');
+    const video = document.getElementById('scanVideo');
+    overlay.classList.add('active');
+
+    try {
+        scanStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        video.srcObject = scanStream;
+        await video.play();
+
+        scanDetector = new BarcodeDetector({
+            formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'itf', 'codabar']
+        });
+
+        detectBarcode(video);
+    } catch (err) {
+        console.error('Camera error:', err);
+        stopCameraScan();
+        if (err.name === 'NotAllowedError') {
+            showToast('\u274c 请允许使用摄像头');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            showToast('\u274c 未检测到摄像头');
+        } else {
+            showToast('\u274c 无法启动摄像头');
+        }
+    }
+}
+
+async function detectBarcode(video) {
+    if (!scanDetector || !scanStream) return;
+
+    try {
+        const barcodes = await scanDetector.detect(video);
+        if (barcodes.length > 0) {
+            const code = barcodes[0].rawValue;
+            if (code) {
+                if (navigator.vibrate) navigator.vibrate(100);
+                stopCameraScan();
+                addKeyword(code, currentKeywords.length);
+                cursorPosition = currentKeywords.length;
+                input.value = '';
+                renderSearchTags();
+                showToast('\u2705 已扫描: ' + code);
+                return;
+            }
+        }
+    } catch (e) {
+        // 某些帧检测可能失败，继续循环
+    }
+
+    scanAnimFrame = requestAnimationFrame(() => detectBarcode(video));
+}
+
+function stopCameraScan() {
+    const overlay = document.getElementById('scanOverlay');
+    overlay.classList.remove('active');
+
+    if (scanAnimFrame) {
+        cancelAnimationFrame(scanAnimFrame);
+        scanAnimFrame = null;
+    }
+    if (scanStream) {
+        scanStream.getTracks().forEach(track => track.stop());
+        scanStream = null;
+    }
+    const video = document.getElementById('scanVideo');
+    if (video) video.srcObject = null;
+    scanDetector = null;
+}
+
+// ==========================================
 // 提示与Toast
 // ==========================================
 function updateInfoBox(hasFile, fileName, recordCount) {
@@ -2758,9 +2807,8 @@ function clearSavedData() {
     document.getElementById('dataSource').innerHTML = `数据：<span class="file-name">未导入文件</span>`;
     document.getElementById('recordCount').textContent = `共 0 条`;
     
-    // 隐藏筛选状态区和搜索状态
+    // 隐藏筛选状态区
     document.getElementById('filterStatus').classList.remove('visible');
-    hideStatus();
     
     updateInfoBox(false);
     input.focus();
