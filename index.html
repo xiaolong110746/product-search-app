@@ -691,6 +691,47 @@ function scheduleRedraw(delay) {
     }, delay);
 }
 
+// 直接操作 DOM 更新行高亮类（绕过 AG Grid 渲染管线，解决快速点击时 redrawRows 导致状态错乱的问题）
+let highlightRAF = null;
+function directUpdateRowHighlights() {
+    if (highlightRAF) cancelAnimationFrame(highlightRAF);
+    highlightRAF = requestAnimationFrame(() => {
+        highlightRAF = null;
+        if (!gridApi) return;
+        // 手机端安全：清除可能残留的桌面端悬停状态
+        hoveredKeyword = null;
+        const activeKw = activeMobileKeyword;
+        const kwToCheck = activeKw ? [activeKw, ...autoHighlightKeywords] : [...autoHighlightKeywords];
+        const shouldHighlight = getEffectiveKeywordCount() >= 2 && kwToCheck.length > 0;
+        // 先批量移除所有高亮类
+        const existingEls = document.querySelectorAll('.ag-row.row-highlight-by-tag');
+        existingEls.forEach(el => el.classList.remove('row-highlight-by-tag', 'hl-group-first', 'hl-group-last'));
+        if (!shouldHighlight) return;
+        // 遍历所有可见行，匹配的加上高亮类
+        const count = gridApi.getDisplayedRowCount();
+        const matchedIndices = new Set();
+        for (let i = 0; i < count; i++) {
+            const rowNode = gridApi.getDisplayedRowAtIndex(i);
+            if (!rowNode || !rowNode.data || !rowNode.rowElement) continue;
+            const isMatched = kwToCheck.some(kw =>
+                Object.values(rowNode.data).some(v => String(v).toLowerCase().includes(kw)) ||
+                (rowNode.data.namePinyin && rowNode.data.namePinyin.includes(kw))
+            );
+            if (isMatched) {
+                matchedIndices.add(i);
+                rowNode.rowElement.classList.add('row-highlight-by-tag');
+            }
+        }
+        // 标记首行和末行
+        for (const idx of matchedIndices) {
+            const rowNode = gridApi.getDisplayedRowAtIndex(idx);
+            if (!rowNode || !rowNode.rowElement) continue;
+            if (!matchedIndices.has(idx - 1)) rowNode.rowElement.classList.add('hl-group-first');
+            if (!matchedIndices.has(idx + 1)) rowNode.rowElement.classList.add('hl-group-last');
+        }
+    });
+}
+
 // 同步闪烁系统：用 JS 定时器统一切换 .flash-on 类，确保所有高亮行同步闪烁
 let flashTimer = null;
 let flashOn = false;
@@ -1663,7 +1704,8 @@ function toggleMobileTagHighlight(kw, tagEl) {
         activeMobileKeyword = null;
         tagEl.classList.remove('tag-active');
         syncFlashState();
-        scheduleRedraw(0); // 防抖重绘，避免快速点击时多次 redrawRows 导致 AG Grid 内部状态错乱
+        directUpdateRowHighlights(); // 直接操作 DOM，不走 AG Grid 渲染管线
+        scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态也同步
     } else {
         // 切换到新标签的高亮
         // 先取消旧的
@@ -1671,7 +1713,8 @@ function toggleMobileTagHighlight(kw, tagEl) {
         activeMobileKeyword = kw;
         tagEl.classList.add('tag-active');
         syncFlashState();
-        scheduleRedraw(0); // 防抖重绘，快速连续点击只触发最后一次实际 redrawRows
+        directUpdateRowHighlights(); // 直接操作 DOM，即时生效，不依赖 redrawRows
+        scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态也同步（虚拟滚动场景）
         // 延迟滚动到第一个匹配行
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
         hoverScrollTimer = setTimeout(() => {
