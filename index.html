@@ -23,8 +23,8 @@
    <script src="xlsx.full.min.js"></script>
    <!-- 拼音库 -->
    <script src="pinyin-pro.min.js"></script>
-   <!-- 扫码库 -->
-   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+   <!-- 扫码库（quagga2 - 专注一维条形码识别） -->
+   <script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.min.js"></script>
     
     <style>
         :root { --primary-color: #2563eb; --bg-color: #f1f5f9; }
@@ -149,10 +149,12 @@
         .scan-overlay.active { display: flex; }
         .scan-overlay-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(0,0,0,0.8); color: #fff; font-size: 1rem; font-weight: 500; }
         .scan-close-btn { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 4px 8px; line-height: 1; }
-        .scan-viewfinder { flex: 1; overflow: hidden; }
-        /* html5-qrcode 样式覆盖 */
-        #scanViewfinder { width: 100%; height: 100%; border: none !important; }
-        #scanViewfinder video { object-fit: cover !important; }
+        .scan-viewfinder { flex: 1; overflow: hidden; position: relative; }
+        /* quagga2 样式覆盖 */
+        #scanViewfinder { width: 100%; height: 100%; }
+        #scanViewfinder > video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+        #scanViewfinder > canvas { display: none !important; }
+        #scanViewfinder > div.drawingBuffer { display: none !important; }
         .scan-hint { text-align: center; padding: 16px; color: rgba(255,255,255,0.8); font-size: 0.9rem; background: rgba(0,0,0,0.8); }
 
         .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 1rem; color: #64748b; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
@@ -620,7 +622,7 @@
         <span style="width:32px"></span>
     </div>
     <div id="scanViewfinder" class="scan-viewfinder"></div>
-    <div class="scan-hint">将条形码对准框内自动扫描</div>
+    <div class="scan-hint">将条形码对准画面中央自动扫描</div>
 </div>
 
 <!-- 自定义右键菜单 -->
@@ -2658,49 +2660,74 @@ function hideContextMenu() {
 }
 
 // ==========================================
-// 摄像头条码扫描（手机端）
+// 摄像头条码扫描（手机端）- quagga2
 // ==========================================
-let html5QrCode = null;
+let quaggaRunning = false;
 
 function startCameraScan() {
-    if (typeof Html5Qrcode === 'undefined') {
+    if (typeof Quagga === 'undefined') {
         showToast('\u274c 扫码组件未加载，请刷新页面重试');
         return;
     }
 
-    const overlay = document.getElementById('scanOverlay');
+    var overlay = document.getElementById('scanOverlay');
     overlay.classList.add('active');
 
-    html5QrCode = new Html5Qrcode('scanViewfinder');
-
-    html5QrCode.start(
-        { facingMode: 'environment' },
-        {
-            fps: 20,
-            qrbox: { width: 250, height: 100 }
+    Quagga.init({
+        inputStream: {
+            name: 'Live',
+            type: 'LiveStream',
+            target: document.getElementById('scanViewfinder'),
+            constraints: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
         },
-        function onScanSuccess(decodedText) {
+        locator: {
+            patchSize: 'medium',
+            halfSample: true
+        },
+        numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 4),
+        frequency: 10,
+        decoder: {
+            readers: [
+                'ean_reader',
+                'ean_8_reader',
+                'upc_reader',
+                'upc_e_reader',
+                'code_128_reader',
+                'code_39_reader'
+            ],
+            multiple: false
+        },
+        locate: true
+    }, function(err) {
+        if (err) {
+            console.error('Quagga init error:', err);
+            stopCameraScan();
+            if (String(err).indexOf('Permission') !== -1 || String(err).indexOf('NotAllowed') !== -1) {
+                showToast('\u274c 请允许使用摄像头');
+            } else {
+                showToast('\u274c 无法启动扫码');
+            }
+            return;
+        }
+        quaggaRunning = true;
+        Quagga.start();
+    });
+
+    Quagga.onDetected(function(result) {
+        if (!quaggaRunning) return;
+        var code = result.codeResult.code;
+        if (code) {
             if (navigator.vibrate) navigator.vibrate(100);
             stopCameraScan();
-            addKeyword(decodedText, currentKeywords.length);
+            addKeyword(code, currentKeywords.length);
             cursorPosition = currentKeywords.length;
             input.value = '';
             renderSearchTags();
-            showToast('\u2705 已扫描: ' + decodedText);
-        },
-        function onScanFailure() {
-            // 每帧未识别到条码时回调，忽略即可
-        }
-    ).catch(function(err) {
-        console.error('Scan error:', err);
-        stopCameraScan();
-        var msg = String(err);
-        if (msg.indexOf('NotAllowed') !== -1 || msg.indexOf('Permission') !== -1) {
-            showToast('\u274c 请允许使用摄像头');
-        } else if (msg.indexOf('NotFound') !== -1 || msg.indexOf('Requested device') !== -1) {
-            showToast('\u274c 未检测到摄像头');
-        } else {
-            showToast('\u274c 无法启动扫码');
+            showToast('\u2705 已扫描: ' + code);
         }
     });
 }
@@ -2709,15 +2736,15 @@ function stopCameraScan() {
     var overlay = document.getElementById('scanOverlay');
     overlay.classList.remove('active');
 
-    if (html5QrCode) {
-        var qr = html5QrCode;
-        html5QrCode = null;
-        qr.stop().then(function() {
-            qr.clear();
-        }).catch(function() {
-            qr.clear();
-        });
+    if (quaggaRunning) {
+        quaggaRunning = false;
+        try {
+            Quagga.stop();
+        } catch(e) {}
     }
+    // 清理 quagga 注入的 DOM
+    var vf = document.getElementById('scanViewfinder');
+    if (vf) vf.innerHTML = '';
 }
 
 // ==========================================
