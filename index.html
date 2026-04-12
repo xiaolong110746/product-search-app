@@ -1662,18 +1662,22 @@ function toggleMobileTagHighlight(kw, tagEl) {
         // 再次点击同一个标签 → 取消高亮
         activeMobileKeyword = null;
         tagEl.classList.remove('tag-active');
-        if (gridApi) gridApi.redrawRows();
         syncFlashState();
+        scheduleRedraw(0); // 防抖重绘，避免快速点击时多次 redrawRows 导致 AG Grid 内部状态错乱
     } else {
         // 切换到新标签的高亮
         // 先取消旧的
         document.querySelectorAll('.search-tag.tag-active').forEach(t => t.classList.remove('tag-active'));
         activeMobileKeyword = kw;
         tagEl.classList.add('tag-active');
-        if (gridApi) gridApi.redrawRows();
         syncFlashState();
+        scheduleRedraw(0); // 防抖重绘，快速连续点击只触发最后一次实际 redrawRows
         // 延迟滚动到第一个匹配行
-        setTimeout(() => scrollToFirstMatchedRow(kw), 100);
+        if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
+        hoverScrollTimer = setTimeout(() => {
+            scrollToFirstMatchedRow(kw);
+            hoverScrollTimer = null;
+        }, 150);
     }
 }
 
