@@ -2676,7 +2676,8 @@ function startCameraScan() {
     html5QrCode.start(
         { facingMode: 'environment' },
         {
-            fps: 20
+            fps: 20,
+            qrbox: { width: 280, height: 100 }
         },
         function onScanSuccess(decodedText) {
             if (navigator.vibrate) navigator.vibrate(100);
