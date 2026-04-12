@@ -23,6 +23,8 @@
    <script src="xlsx.full.min.js"></script>
    <!-- 拼音库 -->
    <script src="pinyin-pro.min.js"></script>
+   <!-- 扫码库 -->
+   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <style>
         :root { --primary-color: #2563eb; --bg-color: #f1f5f9; }
@@ -147,10 +149,10 @@
         .scan-overlay.active { display: flex; }
         .scan-overlay-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(0,0,0,0.8); color: #fff; font-size: 1rem; font-weight: 500; }
         .scan-close-btn { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 4px 8px; line-height: 1; }
-        .scan-viewfinder { flex: 1; position: relative; overflow: hidden; }
-        .scan-viewfinder video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 260px; height: 140px; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; }
-        .scan-crosshair::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); border-radius: 12px; }
+        .scan-viewfinder { flex: 1; overflow: hidden; }
+        /* html5-qrcode 样式覆盖 */
+        #scanViewfinder { width: 100%; height: 100%; border: none !important; }
+        #scanViewfinder video { object-fit: cover !important; }
         .scan-hint { text-align: center; padding: 16px; color: rgba(255,255,255,0.8); font-size: 0.9rem; background: rgba(0,0,0,0.8); }
 
         .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 1rem; color: #64748b; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
@@ -617,10 +619,7 @@
         <span>扫描条形码</span>
         <span style="width:32px"></span>
     </div>
-    <div class="scan-viewfinder">
-        <video id="scanVideo" playsinline autoplay muted></video>
-        <div class="scan-crosshair"></div>
-    </div>
+    <div id="scanViewfinder" class="scan-viewfinder"></div>
     <div class="scan-hint">将条形码对准框内自动扫描</div>
 </div>
 
@@ -2661,85 +2660,69 @@ function hideContextMenu() {
 // ==========================================
 // 摄像头条码扫描（手机端）
 // ==========================================
-let scanStream = null;
-let scanAnimFrame = null;
-let scanDetector = null;
+let html5QrCode = null;
 
-async function startCameraScan() {
-    if (!('BarcodeDetector' in window)) {
-        showToast('\u274c 当前浏览器不支持扫码，请使用 Chrome 或 Safari');
+function startCameraScan() {
+    if (typeof Html5Qrcode === 'undefined') {
+        showToast('\u274c 扫码组件未加载，请刷新页面重试');
         return;
     }
 
     const overlay = document.getElementById('scanOverlay');
-    const video = document.getElementById('scanVideo');
     overlay.classList.add('active');
 
-    try {
-        scanStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-        });
-        video.srcObject = scanStream;
-        await video.play();
+    html5QrCode = new Html5Qrcode('scanViewfinder');
 
-        scanDetector = new BarcodeDetector({
-            formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'itf', 'codabar']
-        });
-
-        detectBarcode(video);
-    } catch (err) {
-        console.error('Camera error:', err);
+    html5QrCode.start(
+        { facingMode: 'environment' },
+        {
+            fps: 10,
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                var w = Math.min(280, viewfinderWidth * 0.8);
+                var h = Math.min(150, viewfinderHeight * 0.25);
+                return { width: Math.floor(w), height: Math.floor(h) };
+            },
+            aspectRatio: 1.0
+        },
+        function onScanSuccess(decodedText) {
+            if (navigator.vibrate) navigator.vibrate(100);
+            stopCameraScan();
+            addKeyword(decodedText, currentKeywords.length);
+            cursorPosition = currentKeywords.length;
+            input.value = '';
+            renderSearchTags();
+            showToast('\u2705 已扫描: ' + decodedText);
+        },
+        function onScanFailure() {
+            // 每帧未识别到条码时回调，忽略即可
+        }
+    ).catch(function(err) {
+        console.error('Scan error:', err);
         stopCameraScan();
-        if (err.name === 'NotAllowedError') {
+        var msg = String(err);
+        if (msg.indexOf('NotAllowed') !== -1 || msg.indexOf('Permission') !== -1) {
             showToast('\u274c 请允许使用摄像头');
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        } else if (msg.indexOf('NotFound') !== -1 || msg.indexOf('Requested device') !== -1) {
             showToast('\u274c 未检测到摄像头');
         } else {
-            showToast('\u274c 无法启动摄像头');
+            showToast('\u274c 无法启动扫码');
         }
-    }
-}
-
-async function detectBarcode(video) {
-    if (!scanDetector || !scanStream) return;
-
-    try {
-        const barcodes = await scanDetector.detect(video);
-        if (barcodes.length > 0) {
-            const code = barcodes[0].rawValue;
-            if (code) {
-                if (navigator.vibrate) navigator.vibrate(100);
-                stopCameraScan();
-                addKeyword(code, currentKeywords.length);
-                cursorPosition = currentKeywords.length;
-                input.value = '';
-                renderSearchTags();
-                showToast('\u2705 已扫描: ' + code);
-                return;
-            }
-        }
-    } catch (e) {
-        // 某些帧检测可能失败，继续循环
-    }
-
-    scanAnimFrame = requestAnimationFrame(() => detectBarcode(video));
+    });
 }
 
 function stopCameraScan() {
-    const overlay = document.getElementById('scanOverlay');
+    var overlay = document.getElementById('scanOverlay');
     overlay.classList.remove('active');
 
-    if (scanAnimFrame) {
-        cancelAnimationFrame(scanAnimFrame);
-        scanAnimFrame = null;
+    if (html5QrCode) {
+        var qr = html5QrCode;
+        html5QrCode = null;
+        qr.stop().then(function() {
+            qr.clear();
+        }).catch(function() {
+            qr.clear();
+        });
     }
-    if (scanStream) {
-        scanStream.getTracks().forEach(track => track.stop());
-        scanStream = null;
-    }
-    const video = document.getElementById('scanVideo');
-    if (video) video.srcObject = null;
-    scanDetector = null;
 }
 
 // ==========================================
