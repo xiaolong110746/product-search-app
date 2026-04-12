@@ -2677,11 +2677,6 @@ function startCameraScan() {
         { facingMode: 'environment' },
         {
             fps: 10,
-            qrbox: function(viewfinderWidth, viewfinderHeight) {
-                var w = Math.min(280, viewfinderWidth * 0.8);
-                var h = Math.min(150, viewfinderHeight * 0.25);
-                return { width: Math.floor(w), height: Math.floor(h) };
-            },
             aspectRatio: 1.0
         },
         function onScanSuccess(decodedText) {
