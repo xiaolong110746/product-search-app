@@ -698,8 +698,9 @@ function directUpdateRowHighlights() {
     highlightRAF = requestAnimationFrame(() => {
         highlightRAF = null;
         if (!gridApi) return;
-        // 同时支持桌面端悬停和手机端点击
-        const activeKw = hoveredKeyword || activeMobileKeyword;
+        // 手机端安全：清除可能残留的桌面端悬停状态
+        hoveredKeyword = null;
+        const activeKw = activeMobileKeyword;
         const kwToCheck = activeKw ? [activeKw, ...autoHighlightKeywords] : [...autoHighlightKeywords];
         const shouldHighlight = getEffectiveKeywordCount() >= 2 && kwToCheck.length > 0;
         // 先批量移除所有高亮类
@@ -1629,8 +1630,7 @@ function createTagElement(kw, idx) {
     tag.addEventListener('mouseenter', function() {
         hoveredKeyword = kw;
         // 防抖重绘（50ms），快速在标签间移动时合并为一次 redrawRows
-        directUpdateRowHighlights(); // 即时更新高亮，不等 redrawRows
-        scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态同步
+        scheduleRedraw(50);
         // 延迟滚动到该标签的第一个匹配行
         if (hoverScrollTimer) clearTimeout(hoverScrollTimer);
         hoverScrollTimer = setTimeout(() => {
@@ -1642,8 +1642,7 @@ function createTagElement(kw, idx) {
         hoveredKeyword = null;
         // 用更长的防抖（150ms），让鼠标快速滑过标签间隙时不触发清除，
         // 只在真正离开所有标签后才清除高亮
-        directUpdateRowHighlights(); // 即时清除高亮
-        scheduleRedraw(150); // 延迟兜底
+        scheduleRedraw(150);
         // 取消待执行的滚动，但不中断已在进行的平滑滚动（避免跳回）
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
         smoothScrollTarget = null;
@@ -1698,23 +1697,24 @@ function createTagElement(kw, idx) {
     return tag;
 }
 
-// 手机端标签点击切换高亮（完全不触发 gridApi.redrawRows，避免快速点击导致 AG Grid 内部状态错乱）
+// 手机端标签点击切换高亮
 function toggleMobileTagHighlight(kw, tagEl) {
-    // 清除可能残留的桌面端悬停状态（某些手机浏览器可能产生合成 mouseenter 事件）
-    hoveredKeyword = null;
     if (activeMobileKeyword === kw) {
         // 再次点击同一个标签 → 取消高亮
         activeMobileKeyword = null;
         tagEl.classList.remove('tag-active');
         syncFlashState();
-        directUpdateRowHighlights();
+        directUpdateRowHighlights(); // 直接操作 DOM，不走 AG Grid 渲染管线
+        scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态也同步
     } else {
         // 切换到新标签的高亮
+        // 先取消旧的
         document.querySelectorAll('.search-tag.tag-active').forEach(t => t.classList.remove('tag-active'));
         activeMobileKeyword = kw;
         tagEl.classList.add('tag-active');
         syncFlashState();
-        directUpdateRowHighlights();
+        directUpdateRowHighlights(); // 直接操作 DOM，即时生效，不依赖 redrawRows
+        scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态也同步（虚拟滚动场景）
         // 延迟滚动到第一个匹配行
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
         hoverScrollTimer = setTimeout(() => {
@@ -1722,21 +1722,6 @@ function toggleMobileTagHighlight(kw, tagEl) {
             hoverScrollTimer = null;
         }, 150);
     }
-}
-
-// 滚动时重新同步高亮（处理虚拟滚动：新滚入视口的行需要补上高亮类）
-let scrollHighlightDebounce = null;
-function setupScrollHighlightSync() {
-    const viewport = document.querySelector('#myGrid .ag-body-viewport');
-    if (!viewport) return;
-    viewport.addEventListener('scroll', function() {
-        if (!activeMobileKeyword) return;
-        if (scrollHighlightDebounce) clearTimeout(scrollHighlightDebounce);
-        scrollHighlightDebounce = setTimeout(() => {
-            scrollHighlightDebounce = null;
-            directUpdateRowHighlights();
-        }, 80);
-    }, { passive: true });
 }
 
 // 根据光标位置动态调整 input 宽度
@@ -2918,10 +2903,7 @@ function initApp() {
     const gridDiv = document.querySelector('#myGrid');
     document.getElementById('loadingIndicator').remove();
     gridApi = agGrid.createGrid(gridDiv, gridOptions);
-
-    // 初始化滚动高亮同步（手机端虚拟滚动场景）
-    setupScrollHighlightSync();
-
+    
     // 初始化扫码逻辑
     initScannerLogic();
     
