@@ -698,9 +698,8 @@ function directUpdateRowHighlights() {
     highlightRAF = requestAnimationFrame(() => {
         highlightRAF = null;
         if (!gridApi) return;
-        // 手机端安全：清除可能残留的桌面端悬停状态
-        hoveredKeyword = null;
-        const activeKw = activeMobileKeyword;
+        // 同时支持桌面端悬停和手机端点击
+        const activeKw = hoveredKeyword || activeMobileKeyword;
         const kwToCheck = activeKw ? [activeKw, ...autoHighlightKeywords] : [...autoHighlightKeywords];
         const shouldHighlight = getEffectiveKeywordCount() >= 2 && kwToCheck.length > 0;
         // 先批量移除所有高亮类
@@ -1630,7 +1629,8 @@ function createTagElement(kw, idx) {
     tag.addEventListener('mouseenter', function() {
         hoveredKeyword = kw;
         // 防抖重绘（50ms），快速在标签间移动时合并为一次 redrawRows
-        scheduleRedraw(50);
+        directUpdateRowHighlights(); // 即时更新高亮，不等 redrawRows
+        scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态同步
         // 延迟滚动到该标签的第一个匹配行
         if (hoverScrollTimer) clearTimeout(hoverScrollTimer);
         hoverScrollTimer = setTimeout(() => {
@@ -1642,7 +1642,8 @@ function createTagElement(kw, idx) {
         hoveredKeyword = null;
         // 用更长的防抖（150ms），让鼠标快速滑过标签间隙时不触发清除，
         // 只在真正离开所有标签后才清除高亮
-        scheduleRedraw(150);
+        directUpdateRowHighlights(); // 即时清除高亮
+        scheduleRedraw(150); // 延迟兜底
         // 取消待执行的滚动，但不中断已在进行的平滑滚动（避免跳回）
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
         smoothScrollTarget = null;
