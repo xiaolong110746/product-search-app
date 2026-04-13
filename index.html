@@ -1505,7 +1505,7 @@ function addKeyword(keyword, position = null) {
     renderSearchTags();
     triggerSearch();
     // 新标签添加后，自动切换焦点到新标签
-    if (getEffectiveKeywordCount() >= 2) {
+    if (getEffectiveKeywordCount() >= 2 && keywordHasMatch(keyword)) {
         activeMobileKeyword = keyword;
         renderSearchTags();
         syncFlashState();
