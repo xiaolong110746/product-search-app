@@ -1688,6 +1688,7 @@ function createTagElement(kw, idx) {
 
 // 手机端标签点击切换高亮
 function toggleMobileTagHighlight(kw, tagEl) {
+    if (!keywordHasMatch(kw)) return;
     if (activeMobileKeyword === kw) {
         // 再次点击同一个标签 → 取消高亮
         activeMobileKeyword = null;
