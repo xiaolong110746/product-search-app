@@ -23,8 +23,8 @@
    <script src="xlsx.full.min.js"></script>
    <!-- 拼音库 -->
    <script src="pinyin-pro.min.js"></script>
-   <!-- 扫码库（quagga2 - 专注一维条形码识别） -->
-   <script src="https://unpkg.com/@ericblade/quagga2/dist/quagga.min.js"></script>
+   <!-- 扫码库（@zxing/library - 高性能条码/二维码识别） -->
+   <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
     
     <style>
         :root { --primary-color: #2563eb; --bg-color: #f1f5f9; }
@@ -150,18 +150,16 @@
         .scan-overlay-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(0,0,0,0.8); color: #fff; font-size: 1rem; font-weight: 500; }
         .scan-close-btn { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 4px 8px; line-height: 1; }
         .scan-viewfinder { flex: 1; overflow: hidden; position: relative; }
-        /* quagga2 样式覆盖 */
+        /* @zxing 扫码样式 */
         #scanViewfinder { width: 100%; height: 100%; }
         #scanViewfinder > video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
-        #scanViewfinder > canvas { display: none !important; }
-        #scanViewfinder > div.drawingBuffer { display: none !important; }
-        /* 取景框（条形码比例 2.6:1） */
+        /* 取景框（4cm x 5cm，靠近摄像头） */
         #scanViewfinder::after {
             content: '';
             position: absolute;
-            top: 50%; left: 50%;
+            top: 30%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 320px; height: 130px;
+            width: 5cm; height: 4cm;
             border: 2px solid rgba(255,255,255,0.85);
             border-radius: 8px;
             box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);
@@ -2720,91 +2718,131 @@ function hideContextMenu() {
 }
 
 // ==========================================
-// 摄像头条码扫描（手机端）- quagga2
+// 摄像头条码扫描（手机端）- @zxing/library
 // ==========================================
-let quaggaRunning = false;
+let scanStream = null;
+let scanVideoEl = null;
+let scanCanvas = null;
+let scanReader = null;
+let scanTimer = null;
+let scanActive = false;
 
 function startCameraScan() {
-    if (typeof Quagga === 'undefined') {
+    if (typeof ZXing === 'undefined') {
         showToast('\u274c 扫码组件未加载，请刷新页面重试');
         return;
     }
 
+    // 先清理上一次可能残留的状态
+    scanActive = false;
+    if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+    if (scanStream) { scanStream.getTracks().forEach(function(t) { t.stop(); }); scanStream = null; }
+    scanReader = null;
+    scanCanvas = null;
+
     var overlay = document.getElementById('scanOverlay');
+    var viewfinder = document.getElementById('scanViewfinder');
+    viewfinder.innerHTML = '';
+
+    // 创建视频元素
+    scanVideoEl = document.createElement('video');
+    scanVideoEl.setAttribute('playsinline', '');
+    scanVideoEl.setAttribute('autoplay', '');
+    scanVideoEl.setAttribute('muted', '');
+    scanVideoEl.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    viewfinder.appendChild(scanVideoEl);
+
+    // 创建离屏 canvas（不挂载到 DOM），用于逐帧截图喂给 ZXing
+    scanCanvas = document.createElement('canvas');
+    var scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+    // 创建 ZXing 多格式解码器（支持一维码 + 二维码）
+    scanReader = new ZXing.MultiFormatReader();
+
     overlay.classList.add('active');
+    scanActive = true;
 
-    Quagga.init({
-        inputStream: {
-            name: 'Live',
-            type: 'LiveStream',
-            target: document.getElementById('scanViewfinder'),
-            constraints: {
-                facingMode: 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        },
-        locator: {
-            patchSize: 'medium',
-            halfSample: true
-        },
-        numOfWorkers: Math.min(navigator.hardwareConcurrency || 2, 4),
-        frequency: 10,
-        decoder: {
-            readers: [
-                'ean_reader',
-                'ean_8_reader',
-                'upc_reader',
-                'upc_e_reader',
-                'code_128_reader',
-                'code_39_reader'
-            ],
-            multiple: false
-        },
-        locate: true
-    }, function(err) {
-        if (err) {
-            console.error('Quagga init error:', err);
-            stopCameraScan();
-            if (String(err).indexOf('Permission') !== -1 || String(err).indexOf('NotAllowed') !== -1) {
-                showToast('\u274c 请允许使用摄像头');
-            } else {
-                showToast('\u274c 无法启动扫码');
-            }
-            return;
+    // 启动后置摄像头
+    navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
         }
-        quaggaRunning = true;
-        Quagga.start();
-    });
+    }).then(function(stream) {
+        if (!scanActive) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
+        scanStream = stream;
+        scanVideoEl.srcObject = stream;
+        scanVideoEl.play();
 
-    Quagga.onDetected(function(result) {
-        if (!quaggaRunning) return;
-        var code = result.codeResult.code;
-        if (code) {
-            if (navigator.vibrate) navigator.vibrate(100);
-            stopCameraScan();
-            addKeyword(code, currentKeywords.length);
-            cursorPosition = currentKeywords.length;
-            input.value = '';
-            renderSearchTags();
-            showToast('\u2705 已扫描: ' + code);
+        // 等视频就绪后开始扫描循环
+        scanVideoEl.addEventListener('loadedmetadata', function onLoaded() {
+            scanVideoEl.removeEventListener('loadedmetadata', onLoaded);
+            if (!scanActive) return;
+            scanCanvas.width = scanVideoEl.videoWidth;
+            scanCanvas.height = scanVideoEl.videoHeight;
+
+            // 约 150ms 间隔扫描（~6-7 次/秒），平衡识别速度与 CPU 开销
+            scanTimer = setInterval(function() {
+                if (!scanActive) return;
+                if (!scanVideoEl || scanVideoEl.readyState < scanVideoEl.HAVE_ENOUGH_DATA) return;
+                try {
+                    scanCtx.drawImage(scanVideoEl, 0, 0, scanCanvas.width, scanCanvas.height);
+                    var luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(scanCanvas);
+                    var binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+                    var result = scanReader.decode(binaryBitmap);
+                    if (result && result.text) {
+                        if (navigator.vibrate) navigator.vibrate(100);
+                        stopCameraScan();
+                        addKeyword(result.text, currentKeywords.length);
+                        cursorPosition = currentKeywords.length;
+                        input.value = '';
+                        renderSearchTags();
+                        showToast('\u2705 已扫描: ' + result.text);
+                    }
+                } catch (e) {
+                    // 未识别到条码，继续扫描（ZXing 在无结果时抛 NotFoundException）
+                }
+            }, 150);
+        });
+    }).catch(function(err) {
+        console.error('Camera init error:', err);
+        stopCameraScan();
+        if (err.name === 'NotAllowedError' || String(err).indexOf('Permission') !== -1 || String(err).indexOf('NotAllowed') !== -1) {
+            showToast('\u274c 请允许使用摄像头');
+        } else {
+            showToast('\u274c 无法启动扫码');
         }
     });
 }
 
 function stopCameraScan() {
+    scanActive = false;
+
+    // 停止扫描定时器
+    if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+
+    // 停止摄像头流
+    if (scanStream) {
+        scanStream.getTracks().forEach(function(track) { track.stop(); });
+        scanStream = null;
+    }
+
+    // 清理视频元素
+    if (scanVideoEl) {
+        scanVideoEl.srcObject = null;
+        scanVideoEl = null;
+    }
+
+    // 清理解码器和 canvas
+    scanReader = null;
+    scanCanvas = null;
+
+    // 隐藏覆盖层，清空 viewfinder
     var overlay = document.getElementById('scanOverlay');
     overlay.classList.remove('active');
-
-    if (quaggaRunning) {
-        quaggaRunning = false;
-        try {
-            Quagga.stop();
-        } catch(e) {}
-    }
-    // 清理 quagga 注入的 DOM
-    var vf = document.getElementById('scanViewfinder');
-    if (vf) vf.innerHTML = '';
+    var viewfinder = document.getElementById('scanViewfinder');
+    if (viewfinder) viewfinder.innerHTML = '';
 }
 
 // ==========================================
