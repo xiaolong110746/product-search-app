@@ -2746,8 +2746,7 @@ function startCameraScan() {
     // 创建 ZXing 多格式解码器
     scanReader = new ZXing.MultiFormatReader();
 
-    // 二维码格式名称集合（解码后过滤，跳过二维码只保留一维码）
-    var qrFormatNames = ['QR_CODE', 'DATA_MATRIX', 'PDF_417', 'AZTEC'];
+    // 二维码内容通常含字母/符号，卷烟条码都是纯数字，直接按内容过滤
 
     overlay.classList.add('active');
     scanActive = true;
@@ -2782,9 +2781,8 @@ function startCameraScan() {
                     var binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
                     var result = scanReader.decode(binaryBitmap);
                     if (result && result.text) {
-                        // 跳过二维码，只处理一维条码
-                        var formatName = result.getBarcodeFormat ? result.getBarcodeFormat().name : '';
-                        if (qrFormatNames.indexOf(formatName) !== -1) return;
+                        // 跳过非纯数字结果（二维码内容通常含字母/URL等）
+                        if (/[^0-9]/.test(result.text.trim())) return;
                         if (navigator.vibrate) navigator.vibrate(100);
                         stopCameraScan();
                         addKeyword(result.text, currentKeywords.length);
