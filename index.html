@@ -469,14 +469,42 @@
                 100% { opacity: 0; transform: translateY(-24px) scale(0.8); max-width: 0; padding: 0; margin: 0; overflow: hidden; }
             }
 
-            /* 激活状态（点击高亮时） */
+            /* 激活状态（焦点标签 - 呼吸灯发光 + 小三角指示） */
             .search-tag.tag-active {
-                box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px var(--tag-shadow, rgba(37,99,235,0.5));
-                transform: scale(1.08);
+                transform: scale(1.12);
                 z-index: 5;
+                filter: brightness(0.85);
+                animation: tagPulse 1.2s ease-in-out infinite;
+                box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--tag-shadow, rgba(37,99,235,0.5)), 0 0 12px var(--tag-shadow, rgba(37,99,235,0.4));
+            }
+            .search-tag.tag-active::before {
+                content: '';
+                position: absolute;
+                top: -8px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 0;
+                height: 0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-bottom: 6px solid var(--tag-text, #1e40af);
+                z-index: 6;
             }
             .search-tag.tag-no-match.tag-active {
-                box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px rgba(156,163,175,0.4);
+                filter: brightness(0.85);
+                animation: tagPulseGray 1.2s ease-in-out infinite;
+                box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px rgba(156,163,175,0.4), 0 0 12px rgba(156,163,175,0.3);
+            }
+            .search-tag.tag-no-match.tag-active::before {
+                border-bottom-color: #9ca3af;
+            }
+            @keyframes tagPulse {
+                0%, 100% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--tag-shadow, rgba(37,99,235,0.5)), 0 0 12px var(--tag-shadow, rgba(37,99,235,0.4)); }
+                50% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--tag-shadow, rgba(37,99,235,0.7)), 0 0 20px var(--tag-shadow, rgba(37,99,235,0.6)); }
+            }
+            @keyframes tagPulseGray {
+                0%, 100% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px rgba(156,163,175,0.4), 0 0 12px rgba(156,163,175,0.3); }
+                50% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px rgba(156,163,175,0.6), 0 0 20px rgba(156,163,175,0.5); }
             }
 
             /* 扫码按钮 - 手机端显示 */
@@ -686,7 +714,7 @@ function directUpdateRowHighlights() {
         // 手机端安全：清除可能残留的桌面端悬停状态
         hoveredKeyword = null;
         const activeKw = activeMobileKeyword;
-        const kwToCheck = activeKw ? [activeKw, ...autoHighlightKeywords] : [...autoHighlightKeywords];
+        const kwToCheck = activeKw ? [activeKw] : [];
         const shouldHighlight = getEffectiveKeywordCount() >= 2 && kwToCheck.length > 0;
         // 先批量移除所有高亮类
         const existingEls = document.querySelectorAll('.ag-row.row-highlight-by-tag');
@@ -727,7 +755,7 @@ function getEffectiveKeywordCount() {
 function isAnyHighlightActive() {
     // 有效标签不足2个时关闭所有行闪烁（文本高亮保留）
     if (getEffectiveKeywordCount() < 2) return false;
-    return hoveredKeyword || activeMobileKeyword || autoHighlightKeywords.size > 0;
+    return hoveredKeyword || activeMobileKeyword;
 }
 function syncFlashState() {
     if (isAnyHighlightActive()) startFlashTimer();
@@ -754,7 +782,6 @@ function stopFlashTimer() {
 }
 
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
-const autoHighlightKeywords = new Set(); // 自动高亮关键字集合（新标签添加后闪烁5秒，各自独立计时）
 const TAG_COLORS = [
     { bg: 'linear-gradient(135deg, #f87171, #ef4444)', text: '#ffffff', shadow: 'rgba(239,68,68,0.25)' },
     { bg: 'linear-gradient(135deg, #60a5fa, #3b82f6)', text: '#ffffff', shadow: 'rgba(59,130,246,0.25)' },
@@ -1192,9 +1219,9 @@ const gridOptions = {
         // 有效标签不足2个时不高亮整行（文本高亮保留）
         if (getEffectiveKeywordCount() < 2) return '';
         const item = params.data;
-        // 合并所有需要高亮的关键字：鼠标悬停 / 手机激活 / 自动高亮
+        // 合并所有需要高亮的关键字：鼠标悬停 / 手机激活
         const activeKw = hoveredKeyword || activeMobileKeyword;
-        const kwToCheck = activeKw ? [activeKw, ...autoHighlightKeywords] : [...autoHighlightKeywords];
+        const kwToCheck = activeKw ? [activeKw] : [];
         if (kwToCheck.length === 0) return '';
         // 检查当前行是否匹配
         function isMatched(data) {
@@ -1483,16 +1510,14 @@ function addKeyword(keyword, position = null) {
     keyword = keyword.trim().toLowerCase();
     if (!keyword) return;
     if (currentKeywords.includes(keyword)) {
-        // 重复标签：有效标签数>=2 时闪烁提醒用户（不足时受需求1约束不闪烁）
-        if (getEffectiveKeywordCount() >= 2) {
-            autoHighlightKeywords.add(keyword);
+        // 重复标签：在手机端切换焦点到该标签
+        if (isMobile() && getEffectiveKeywordCount() >= 2) {
+            activeMobileKeyword = keyword;
+            renderSearchTags();
             syncFlashState();
-            if (gridApi) gridApi.redrawRows();
-            setTimeout(() => {
-                autoHighlightKeywords.delete(keyword);
-                syncFlashState();
-                if (gridApi) gridApi.redrawRows();
-            }, 2000);
+            directUpdateRowHighlights();
+            scheduleRedraw(50);
+            setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
         }
         return;
     }
@@ -1501,17 +1526,26 @@ function addKeyword(keyword, position = null) {
     cursorPosition = insertPos + 1;
     renderSearchTags();
     triggerSearch();
-    // 新标签添加后，自动闪烁高亮并滚动到该标签的第一个匹配行
+    // 新标签添加后，手机端自动切换焦点到新标签，桌面端自动闪烁高亮
     if (getEffectiveKeywordCount() >= 2) {
-        autoHighlightKeywords.add(keyword);
-        syncFlashState();
-        if (gridApi) gridApi.redrawRows();
-        setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
-        setTimeout(() => {
-            autoHighlightKeywords.delete(keyword);
+        if (isMobile()) {
+            activeMobileKeyword = keyword;
+            renderSearchTags();
+            syncFlashState();
+            directUpdateRowHighlights();
+            scheduleRedraw(50);
+            setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+        } else {
+            hoveredKeyword = keyword;
             syncFlashState();
             if (gridApi) gridApi.redrawRows();
-        }, 5000);
+            setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+            setTimeout(() => {
+                hoveredKeyword = null;
+                syncFlashState();
+                if (gridApi) gridApi.redrawRows();
+            }, 5000);
+        }
     }
 }
 
@@ -1521,7 +1555,6 @@ function removeKeyword(idx) {
     hoveredKeyword = null;
     const removedKw = currentKeywords[idx];
     if (activeMobileKeyword === removedKw) activeMobileKeyword = null;
-    autoHighlightKeywords.delete(removedKw);
     currentKeywords.splice(idx, 1);
     if (cursorPosition > idx) cursorPosition--;
     renderSearchTags();
@@ -2211,7 +2244,7 @@ function clearSearch() {
     
     hoveredKeyword = null;
     activeMobileKeyword = null;
-    autoHighlightKeywords.clear();
+
     stopFlashTimer();
     if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
     currentKeywords = [];
@@ -2471,7 +2504,7 @@ function clearAllFilters() {
         // 没有标签，直接执行
         hoveredKeyword = null;
         activeMobileKeyword = null;
-        autoHighlightKeywords.clear();
+    
         stopFlashTimer();
         input.value = '';
         currentSearchText = '';
@@ -2490,7 +2523,7 @@ function clearAllFilters() {
         // 重置所有高亮状态
         hoveredKeyword = null;
         activeMobileKeyword = null;
-        autoHighlightKeywords.clear();
+    
         stopFlashTimer();
         if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
         // 动画完成后清除搜索关键字
@@ -2539,7 +2572,7 @@ function executeClearSearch(skipToast) {
     // 重置所有高亮状态
     hoveredKeyword = null;
     activeMobileKeyword = null;
-    autoHighlightKeywords.clear();
+
     stopFlashTimer();
     if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
     // 清除所有搜索关键字标签
