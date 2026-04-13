@@ -1504,26 +1504,14 @@ function addKeyword(keyword, position = null) {
     cursorPosition = insertPos + 1;
     renderSearchTags();
     triggerSearch();
-    // 新标签添加后，手机端自动切换焦点到新标签，桌面端自动闪烁高亮
+    // 新标签添加后，自动切换焦点到新标签
     if (getEffectiveKeywordCount() >= 2) {
-        if (isMobile()) {
-            activeMobileKeyword = keyword;
-            renderSearchTags();
-            syncFlashState();
-            directUpdateRowHighlights();
-            scheduleRedraw(50);
-            setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
-        } else {
-            hoveredKeyword = keyword;
-            syncFlashState();
-            if (gridApi) gridApi.redrawRows();
-            setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
-            setTimeout(() => {
-                hoveredKeyword = null;
-                syncFlashState();
-                if (gridApi) gridApi.redrawRows();
-            }, 5000);
-        }
+        activeMobileKeyword = keyword;
+        renderSearchTags();
+        syncFlashState();
+        directUpdateRowHighlights();
+        scheduleRedraw(50);
+        setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
     }
 }
 
