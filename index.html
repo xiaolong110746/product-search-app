@@ -2743,20 +2743,11 @@ function startCameraScan() {
     scanCanvas = document.createElement('canvas');
     var scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
 
-    // 创建 ZXing 解码器（仅一维条码，禁用二维码避免误识别）
-    var hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.CODE_93,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.CODABAR
-    ]);
-    scanReader = new ZXing.MultiFormatReader(hints);
+    // 创建 ZXing 多格式解码器
+    scanReader = new ZXing.MultiFormatReader();
+
+    // 二维码格式名称集合（解码后过滤，跳过二维码只保留一维码）
+    var qrFormatNames = ['QR_CODE', 'DATA_MATRIX', 'PDF_417', 'AZTEC'];
 
     overlay.classList.add('active');
     scanActive = true;
@@ -2791,6 +2782,9 @@ function startCameraScan() {
                     var binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
                     var result = scanReader.decode(binaryBitmap);
                     if (result && result.text) {
+                        // 跳过二维码，只处理一维条码
+                        var formatName = result.getBarcodeFormat ? result.getBarcodeFormat().name : '';
+                        if (qrFormatNames.indexOf(formatName) !== -1) return;
                         if (navigator.vibrate) navigator.vibrate(100);
                         stopCameraScan();
                         addKeyword(result.text, currentKeywords.length);
