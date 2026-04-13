@@ -469,42 +469,22 @@
                 100% { opacity: 0; transform: translateY(-24px) scale(0.8); max-width: 0; padding: 0; margin: 0; overflow: hidden; }
             }
 
-            /* 激活状态（焦点标签 - 呼吸灯发光 + 小三角指示） */
+            /* 激活状态（焦点标签 - 淡深闪烁） */
             .search-tag.tag-active {
                 transform: scale(1.12);
                 z-index: 5;
-                filter: brightness(0.85);
-                animation: tagPulse 1.2s ease-in-out infinite;
-                box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--tag-shadow, rgba(37,99,235,0.5)), 0 0 12px var(--tag-shadow, rgba(37,99,235,0.4));
-            }
-            .search-tag.tag-active::before {
-                content: '';
-                position: absolute;
-                top: -8px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 0;
-                height: 0;
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
-                border-bottom: 6px solid var(--tag-text, #1e40af);
-                z-index: 6;
+                animation: tagBlink 1.2s ease-in-out infinite;
             }
             .search-tag.tag-no-match.tag-active {
-                filter: brightness(0.85);
-                animation: tagPulseGray 1.2s ease-in-out infinite;
-                box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px rgba(156,163,175,0.4), 0 0 12px rgba(156,163,175,0.3);
+                animation: tagBlinkGray 1.2s ease-in-out infinite;
             }
-            .search-tag.tag-no-match.tag-active::before {
-                border-bottom-color: #9ca3af;
+            @keyframes tagBlink {
+                0%, 100% { filter: brightness(1); }
+                50% { filter: brightness(1.8); }
             }
-            @keyframes tagPulse {
-                0%, 100% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--tag-shadow, rgba(37,99,235,0.5)), 0 0 12px var(--tag-shadow, rgba(37,99,235,0.4)); }
-                50% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px var(--tag-shadow, rgba(37,99,235,0.7)), 0 0 20px var(--tag-shadow, rgba(37,99,235,0.6)); }
-            }
-            @keyframes tagPulseGray {
-                0%, 100% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px rgba(156,163,175,0.4), 0 0 12px rgba(156,163,175,0.3); }
-                50% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 5px rgba(156,163,175,0.6), 0 0 20px rgba(156,163,175,0.5); }
+            @keyframes tagBlinkGray {
+                0%, 100% { filter: brightness(1); }
+                50% { filter: brightness(1.6); }
             }
 
             /* 扫码按钮 - 手机端显示 */
