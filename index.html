@@ -671,6 +671,7 @@ let activeMobileKeyword = null; // 手机端点击激活的标签关键字
 let hoverScrollTimer = null; // 悬停延迟滚动定时器
 let redrawDebounceTimer = null; // 高亮重绘防抖定时器（避免标签间快速切换时重复 redrawRows）
 let smoothScrollTarget = null; // 当前平滑滚动目标 scrollTop，用于中断检测
+let blinkStopTimer = null; // 闪烁自动停止定时器（7秒后停止闪烁）
 
 // 防抖重绘行高亮：合并短时间内的多次 redrawRows 调用
 function scheduleRedraw(delay) {
@@ -757,6 +758,32 @@ function stopFlashTimer() {
     flashOn = false;
     const gridEl = document.getElementById('myGrid');
     if (gridEl) gridEl.classList.remove('flash-on');
+}
+
+// 7秒后自动停止闪烁
+function startBlinkAutoStop() {
+    // 先清除之前的定时器
+    if (blinkStopTimer) clearTimeout(blinkStopTimer);
+    // 7秒后自动停止闪烁
+    blinkStopTimer = setTimeout(() => {
+        blinkStopTimer = null;
+        // 移除所有标签的激活状态
+        document.querySelectorAll('.search-tag.tag-active').forEach(t => t.classList.remove('tag-active'));
+        // 清除激活关键字
+        activeMobileKeyword = null;
+        // 停止行闪烁
+        syncFlashState();
+        directUpdateRowHighlights();
+        scheduleRedraw(50);
+    }, 7000);
+}
+
+// 停止自动停止定时器（用户主动操作时调用）
+function stopBlinkAutoStop() {
+    if (blinkStopTimer) {
+        clearTimeout(blinkStopTimer);
+        blinkStopTimer = null;
+    }
 }
 
 let keywordMatchCount = {}; // 记录每个关键字当前匹配的商品数量
@@ -1496,6 +1523,7 @@ function addKeyword(keyword, position = null) {
             directUpdateRowHighlights();
             scheduleRedraw(50);
             setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+            startBlinkAutoStop(); // 启动7秒自动停止
         }
         return;
     }
@@ -1512,6 +1540,7 @@ function addKeyword(keyword, position = null) {
         directUpdateRowHighlights();
         scheduleRedraw(50);
         setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+        startBlinkAutoStop(); // 启动7秒自动停止
     }
 }
 
@@ -1520,7 +1549,10 @@ function removeKeyword(idx) {
     // 重置高亮状态，防止删除后表格残留闪烁
     hoveredKeyword = null;
     const removedKw = currentKeywords[idx];
-    if (activeMobileKeyword === removedKw) activeMobileKeyword = null;
+    if (activeMobileKeyword === removedKw) {
+        activeMobileKeyword = null;
+        stopBlinkAutoStop(); // 停止自动停止定时器
+    }
     currentKeywords.splice(idx, 1);
     if (cursorPosition > idx) cursorPosition--;
     renderSearchTags();
@@ -1531,7 +1563,9 @@ function removeKeyword(idx) {
 
 function clearAllKeywords() {
     hoveredKeyword = null;
+    activeMobileKeyword = null;
     if (autoTagTimer) { clearTimeout(autoTagTimer); autoTagTimer = null; }
+    stopBlinkAutoStop(); // 停止自动停止定时器
     currentKeywords = [];
     cursorPosition = 0;
     renderSearchTags();
@@ -1696,6 +1730,7 @@ function toggleMobileTagHighlight(kw, tagEl) {
         syncFlashState();
         directUpdateRowHighlights(); // 直接操作 DOM，不走 AG Grid 渲染管线
         scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态也同步
+        stopBlinkAutoStop(); // 停止自动停止定时器
     } else {
         // 切换到新标签的高亮
         // 先取消旧的
@@ -1711,6 +1746,7 @@ function toggleMobileTagHighlight(kw, tagEl) {
             scrollToFirstMatchedRow(kw);
             hoverScrollTimer = null;
         }, 150);
+        startBlinkAutoStop(); // 启动7秒自动停止
     }
 }
 
