@@ -760,11 +760,11 @@ function stopFlashTimer() {
     if (gridEl) gridEl.classList.remove('flash-on');
 }
 
-// 7秒后自动停止闪烁
+// 17秒后自动停止闪烁
 function startBlinkAutoStop() {
     // 先清除之前的定时器
     if (blinkStopTimer) clearTimeout(blinkStopTimer);
-    // 7秒后自动停止闪烁
+    // 17秒后自动停止闪烁
     blinkStopTimer = setTimeout(() => {
         blinkStopTimer = null;
         // 移除所有标签的激活状态
@@ -775,7 +775,7 @@ function startBlinkAutoStop() {
         syncFlashState();
         directUpdateRowHighlights();
         scheduleRedraw(50);
-    }, 7000);
+    }, 17000);
 }
 
 // 停止自动停止定时器（用户主动操作时调用）
@@ -1730,7 +1730,6 @@ function toggleMobileTagHighlight(kw, tagEl) {
         syncFlashState();
         directUpdateRowHighlights(); // 直接操作 DOM，不走 AG Grid 渲染管线
         scheduleRedraw(50); // 延迟兜底，让 AG Grid 内部状态也同步
-        stopBlinkAutoStop(); // 停止自动停止定时器
     } else {
         // 切换到新标签的高亮
         // 先取消旧的
@@ -1746,7 +1745,6 @@ function toggleMobileTagHighlight(kw, tagEl) {
             scrollToFirstMatchedRow(kw);
             hoverScrollTimer = null;
         }, 150);
-        startBlinkAutoStop(); // 启动7秒自动停止
     }
 }
 
