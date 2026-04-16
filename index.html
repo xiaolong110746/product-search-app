@@ -1515,15 +1515,15 @@ function addKeyword(keyword, position = null) {
     keyword = keyword.trim().toLowerCase();
     if (!keyword) return;
     if (currentKeywords.includes(keyword)) {
-        // 重复标签：在手机端切换焦点到该标签
-        if (isMobile() && getEffectiveKeywordCount() >= 2) {
+        // 重复标签：在手机端切换焦点到该标签（仅当标签有匹配结果时）
+        if (isMobile() && getEffectiveKeywordCount() >= 2 && keywordHasMatch(keyword)) {
             activeMobileKeyword = keyword;
             renderSearchTags();
             syncFlashState();
             directUpdateRowHighlights();
             scheduleRedraw(50);
             setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
-            startBlinkAutoStop(); // 启动7秒自动停止
+            startBlinkAutoStop(); // 启动17秒自动停止
         }
         return;
     }
@@ -1532,7 +1532,7 @@ function addKeyword(keyword, position = null) {
     cursorPosition = insertPos + 1;
     renderSearchTags();
     triggerSearch();
-    // 新标签添加后，自动切换焦点到新标签
+    // 新标签添加后，自动切换焦点到新标签（仅当标签有匹配结果时）
     if (getEffectiveKeywordCount() >= 2 && keywordHasMatch(keyword)) {
         activeMobileKeyword = keyword;
         renderSearchTags();
@@ -1540,7 +1540,7 @@ function addKeyword(keyword, position = null) {
         directUpdateRowHighlights();
         scheduleRedraw(50);
         setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
-        startBlinkAutoStop(); // 启动7秒自动停止
+        startBlinkAutoStop(); // 启动17秒自动停止
     }
 }
 
