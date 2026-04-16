@@ -1515,8 +1515,8 @@ function addKeyword(keyword, position = null) {
     keyword = keyword.trim().toLowerCase();
     if (!keyword) return;
     if (currentKeywords.includes(keyword)) {
-        // 重复标签：在手机端切换焦点到该标签（仅当标签有匹配结果时）
-        if (isMobile() && getEffectiveKeywordCount() >= 2 && keywordHasMatch(keyword)) {
+        // 重复标签：切换焦点到已存在的标签并闪烁（仅当标签有匹配结果时）
+        if (getEffectiveKeywordCount() >= 2 && keywordHasMatch(keyword)) {
             activeMobileKeyword = keyword;
             renderSearchTags();
             syncFlashState();
