@@ -801,7 +801,7 @@ const keywordColorIndex = {}; // keyword -> color index（持久映射，保证�
 let nextColorIdx = 0;
 
 // 延迟滚动：悬停标签时，尽量让所有匹配行都显示在视口中；若匹配行太多超出视口，则从第一个匹配行开始显示
-function scrollToFirstMatchedRow(kw) {
+function scrollToFirstMatchedRow(kw, forceScroll = false) {
     if (!gridApi || !kw) return;
     const viewport = document.querySelector('#myGrid .ag-body-viewport');
     if (!viewport) return;
@@ -829,7 +829,7 @@ function scrollToFirstMatchedRow(kw) {
     if (firstRowNode && lastRowNode && firstRowNode.rowElement && lastRowNode.rowElement) {
         const firstRect = firstRowNode.rowElement.getBoundingClientRect();
         const lastRect = lastRowNode.rowElement.getBoundingClientRect();
-        if (firstRect.top >= vpRect.top && lastRect.bottom <= vpRect.bottom) return;
+        if (!forceScroll && firstRect.top >= vpRect.top && lastRect.bottom <= vpRect.bottom) return;
     }
 
     // 不全可见，平滑滚动到第一个匹配行的位置
@@ -1532,14 +1532,17 @@ function addKeyword(keyword, position = null) {
     cursorPosition = insertPos + 1;
     renderSearchTags();
     triggerSearch();
-    // 新标签添加后，自动切换焦点到新标签（仅当标签有匹配结果时）
+    // 新标签添加后，滚动到该标签的第一个匹配行（让它显示在视口第一行，像 Excel 一样）
+    if (keywordHasMatch(keyword) && gridApi) {
+        setTimeout(() => scrollToFirstMatchedRow(keyword, true), 150);
+    }
+    // 标签高亮/闪烁（仅当有效标签 >= 2 个时）
     if (getEffectiveKeywordCount() >= 2 && keywordHasMatch(keyword)) {
         activeMobileKeyword = keyword;
         renderSearchTags();
         syncFlashState();
         directUpdateRowHighlights();
         scheduleRedraw(50);
-        setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
         startBlinkAutoStop(); // 启动17秒自动停止
     }
 }
