@@ -841,9 +841,28 @@ function scrollToFirstMatchedRow(kw, forceScroll = false) {
         if (!forceScroll && firstRect.top >= vpRect.top && lastRect.bottom <= vpRect.bottom) return;
     }
 
-    // 直接跳转到第一个匹配行的位置（兼容手机端，smooth 在部分手机浏览器不生效）
+    // 滚动到第一个匹配行的位置
     if (viewport) {
-        viewport.scrollTop = firstRowNode.rowTop || 0;
+        const targetTop = firstRowNode.rowTop || 0;
+        if (isMobile()) {
+            // 手机端：用 rAF 手动平滑滚动（部分手机浏览器不支持 smooth behavior）
+            let currentTop = viewport.scrollTop;
+            const distance = targetTop - currentTop;
+            if (Math.abs(distance) < 2) return;
+            const duration = 200; // 200ms
+            const startTime = performance.now();
+            function smoothStep(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+                viewport.scrollTop = currentTop + distance * eased;
+                if (progress < 1) requestAnimationFrame(smoothStep);
+            }
+            requestAnimationFrame(smoothStep);
+        } else {
+            // 桌面端：直接用 smooth behavior
+            viewport.scrollTo({ top: targetTop, behavior: 'smooth' });
+        }
     }
 }
 
