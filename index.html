@@ -114,6 +114,11 @@
         .ag-theme-alpine .ag-row-selected:hover { background-color: #bfdbfe !important; }
         .ag-theme-alpine .ag-row:hover { background-color: #f1f5f9; }
 
+        /* 占位空行 - 模拟 Excel 底部空白区域 */
+        .ag-theme-alpine .ag-row.ag-row-placeholder { pointer-events: none; }
+        .ag-theme-alpine .ag-row.ag-row-placeholder .ag-cell { border-bottom: none !important; }
+        .ag-theme-alpine .ag-row.ag-row-placeholder:hover { background-color: transparent !important; }
+
         /* 标签悬停/自动高亮行闪烁效果（由 JS 统一控制 .flash-on 类实现同步闪烁） */
         .ag-theme-alpine .ag-row.row-highlight-by-tag::after {
             content: '';
@@ -662,6 +667,7 @@ let gridApi = null;
 let allData = [];
 let currentSearchText = ''; 
 let lastFilteredCount = 0; // 记录上次筛选结果数量
+let placeholderRowCount = 0; // 视口能容纳的行数，用于追加空白占位行
 
 // ==========================================
 // 标签颜色映射系统
@@ -705,6 +711,7 @@ function directUpdateRowHighlights() {
         for (let i = 0; i < count; i++) {
             const rowNode = gridApi.getDisplayedRowAtIndex(i);
             if (!rowNode || !rowNode.data || !rowNode.rowElement) continue;
+            if (rowNode.data._isPlaceholder) continue;
             const isMatched = kwToCheck.some(kw =>
                 Object.values(rowNode.data).some(v => String(v).toLowerCase().includes(kw)) ||
                 (rowNode.data.namePinyin && rowNode.data.namePinyin.includes(kw))
@@ -814,6 +821,7 @@ function scrollToFirstMatchedRow(kw, forceScroll = false) {
         const rowNode = gridApi.getDisplayedRowAtIndex(i);
         if (!rowNode || !rowNode.data) continue;
         const item = rowNode.data;
+        if (item._isPlaceholder) continue;
         const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
         const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
         if (hasText || hasPinyin) {
@@ -855,6 +863,28 @@ function getTagColor(keyword) {
 // 判断关键字在当前数据中是否有匹配结果
 function keywordHasMatch(kw) {
     return (keywordMatchCount[kw] || 0) > 0;
+}
+
+// 计算视口能容纳多少行（初始化和窗口大小变化时调用）
+function calcViewportRowCount() {
+    if (!gridApi) { placeholderRowCount = 0; return; }
+    const viewport = document.querySelector('#myGrid .ag-body-viewport');
+    if (!viewport) { placeholderRowCount = 0; return; }
+    const rowEl = document.querySelector('#myGrid .ag-row');
+    const rowHeight = rowEl ? rowEl.offsetHeight : 0;
+    if (!rowHeight || rowHeight <= 0) { placeholderRowCount = 0; return; }
+    placeholderRowCount = Math.ceil(viewport.clientHeight / rowHeight) + 1;
+    console.log('📐 视口可容纳行数:', placeholderRowCount);
+}
+
+// 为数据追加空白占位行，模拟 Excel 底部空白区域
+function appendPlaceholders(data) {
+    if (!data || data.length === 0 || placeholderRowCount <= 0) return data;
+    const result = data.slice();
+    for (let i = 0; i < placeholderRowCount; i++) {
+        result.push({ _isPlaceholder: true });
+    }
+    return result;
 }
 
 // 存储键名
@@ -1221,6 +1251,7 @@ const gridOptions = {
     defaultColDef: { resizable: true, sortable: true },
     getRowClass: function(params) {
         if (!params.data) return '';
+        if (params.data._isPlaceholder) return 'ag-row-placeholder';
         // 有效标签不足2个时不高亮整行（文本高亮保留）
         if (getEffectiveKeywordCount() < 2) return '';
         const item = params.data;
@@ -1389,6 +1420,7 @@ function processData(data, source) {
         // 自动调整列宽适应内容
         setTimeout(() => {
             gridApi.autoSizeAllColumns();
+            calcViewportRowCount();
         }, 100);
     }
     
@@ -2187,7 +2219,7 @@ function filterData(query) {
         lastSearchedKeywordsStr = '';
         keywordMatchCount = {};
         updateTagColors();
-        gridApi.setGridOption('rowData', allData);
+        gridApi.setGridOption('rowData', appendPlaceholders(allData));
         lastFilteredCount = allData.length;
         updateFilterStatus();
         return;
@@ -2228,7 +2260,7 @@ function filterData(query) {
     // 刷新标签样式（有匹配的保持彩色，无匹配的变灰）
     updateTagColors();
 
-    gridApi.setGridOption('rowData', filtered);
+    gridApi.setGridOption('rowData', appendPlaceholders(filtered));
     
     updateFilterStatus();
 }
@@ -2240,8 +2272,12 @@ function updateCount(n) {
 // 更新页脚记录数（根据当前表格显示的行数）
 function updateFooterCount() {
     if (gridApi) {
-        const displayedCount = gridApi.getDisplayedRowCount();
-        document.getElementById('recordCount').textContent = `当前: ${displayedCount} 条`;
+        let count = gridApi.getDisplayedRowCount();
+        // 减去占位空行
+        if (placeholderRowCount > 0 && count > 0) {
+            count = Math.max(0, count - placeholderRowCount);
+        }
+        document.getElementById('recordCount').textContent = `当前: ${count} 条`;
     }
 }
 
@@ -3005,6 +3041,8 @@ function initApp() {
     }
     
     console.log('✅ 应用初始化完成');
+    // 延迟计算视口能容纳的行数（等数据渲染完）
+    setTimeout(calcViewportRowCount, 300);
 }
 
 // DOM 加载完成后初始化
@@ -3017,6 +3055,7 @@ window.addEventListener('resize', function() {
         // 使用防抖避免频繁刷新
         clearTimeout(window.resizeTimer);
         window.resizeTimer = setTimeout(function() {
+            calcViewportRowCount();
             // 检测是否跨越了桌面/手机边界，需要切换列配置
             const currentType = isMobile();
             if (currentType !== lastDeviceType) {
