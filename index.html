@@ -668,6 +668,7 @@ let allData = [];
 let currentSearchText = ''; 
 let lastFilteredCount = 0; // 记录上次筛选结果数量
 let placeholderRowCount = 0; // 视口能容纳的行数，用于追加空白占位行
+let cachedPlaceholderRows = []; // 缓存的空行数组，避免每次搜索都重新创建
 
 // ==========================================
 // 标签颜色映射系统
@@ -840,15 +841,9 @@ function scrollToFirstMatchedRow(kw, forceScroll = false) {
         if (!forceScroll && firstRect.top >= vpRect.top && lastRect.bottom <= vpRect.bottom) return;
     }
 
-    // 不全可见，平滑滚动到第一个匹配行的位置
+    // 直接跳转到第一个匹配行的位置（兼容手机端，smooth 在部分手机浏览器不生效）
     if (viewport) {
-        // 中断上一次正在进行的平滑滚动
-        if (smoothScrollTarget !== null) {
-            viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop);
-        }
-        const targetTop = firstRowNode.rowTop || 0;
-        smoothScrollTarget = targetTop;
-        viewport.scrollTo({ top: targetTop, behavior: 'smooth' });
+        viewport.scrollTop = firstRowNode.rowTop || 0;
     }
 }
 
@@ -875,16 +870,17 @@ function calcViewportRowCount() {
     if (!rowHeight || rowHeight <= 0) { placeholderRowCount = 0; return; }
     placeholderRowCount = Math.ceil(viewport.clientHeight / rowHeight) + 1;
     console.log('📐 视口可容纳行数:', placeholderRowCount);
+    // 重新生成缓存的空行数组
+    cachedPlaceholderRows = [];
+    for (let i = 0; i < placeholderRowCount; i++) {
+        cachedPlaceholderRows.push({ _isPlaceholder: true });
+    }
 }
 
 // 为数据追加空白占位行，模拟 Excel 底部空白区域
 function appendPlaceholders(data) {
-    if (!data || data.length === 0 || placeholderRowCount <= 0) return data;
-    const result = data.slice();
-    for (let i = 0; i < placeholderRowCount; i++) {
-        result.push({ _isPlaceholder: true });
-    }
-    return result;
+    if (!data || data.length === 0 || cachedPlaceholderRows.length === 0) return data;
+    return data.concat(cachedPlaceholderRows);
 }
 
 // 存储键名
