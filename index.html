@@ -815,8 +815,7 @@ function scrollToFirstMatchedRow(kw, forceScroll = false) {
     if (!viewport) return;
 
     // 所有标签搜索结果的总行数 ≤ 视口容纳行数时，无需滚动（一屏装得下，闪烁即可定位）
-    const totalDataRows = Math.max(0, gridApi.getDisplayedRowCount() - placeholderRowCount);
-    if (totalDataRows > 0 && totalDataRows <= placeholderRowCount) return;
+    if (placeholderRowCount > 0 && lastFilteredCount > 0 && lastFilteredCount <= placeholderRowCount) return;
 
     const vpRect = viewport.getBoundingClientRect();
     const count = gridApi.getDisplayedRowCount();
@@ -2280,6 +2279,7 @@ function filterData(query) {
     // 刷新标签样式（有匹配的保持彩色，无匹配的变灰）
     updateTagColors();
 
+    lastFilteredCount = filtered.length;
     gridApi.setGridOption('rowData', appendPlaceholders(filtered));
     
     updateFilterStatus();
