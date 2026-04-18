@@ -3040,22 +3040,25 @@ function initApp() {
     // 初始化右键菜单
     initContextMenu();
     
-    // 尝试加载已保存的数据
+    // 尝试从本地缓存加载数据（秒开）
     const savedData = loadData();
+    let hasCache = false;
     
     if (savedData && savedData.fileData) {
         const formatted = parseExcelData(savedData.fileData);
-        
         if (formatted.length > 0) {
             processData(formatted, savedData.fileName);
             updateInfoBox(true, savedData.fileName, formatted.length);
             showToast(`✅ 自动加载「${savedData.fileName}」，共 ${formatted.length} 条`);
-        } else {
-            loadDemoData();
-            updateInfoBox(false);
+            hasCache = true;
         }
-    } else {
-        // 没有保存的数据，加载演示数据
+    }
+    
+    // 后台从服务器拉取最新 Excel，成功则更新缓存和表格
+    loadRemoteExcel(hasCache);
+    
+    // 无缓存时先显示空状态（等 fetch 成功后会自动填充）
+    if (!hasCache) {
         loadDemoData();
         updateInfoBox(false);
     }
@@ -3063,6 +3066,44 @@ function initApp() {
     console.log('✅ 应用初始化完成');
     // 延迟计算视口能容纳的行数（等数据渲染完）
     setTimeout(calcViewportRowCount, 300);
+}
+
+// 从服务器加载 Excel 文件并更新数据
+// hasCache: 是否已有本地缓存（有缓存时静默更新，无缓存时显示加载提示）
+function loadRemoteExcel(hasCache) {
+    const REMOTE_EXCEL = '烟草库存模板.xlsx';
+    
+    fetch(REMOTE_EXCEL)
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.arrayBuffer();
+        })
+        .then(arrayBuffer => {
+            const formatted = parseExcelData(arrayBuffer);
+            if (formatted.length === 0) {
+                console.warn('⚠️ 远程 Excel 文件为空或格式不正确');
+                return;
+            }
+            
+            // 更新表格数据
+            processData(formatted, REMOTE_EXCEL);
+            
+            // 更新本地缓存
+            saveData(REMOTE_EXCEL, arrayBuffer, formatted.length);
+            updateInfoBox(true, REMOTE_EXCEL, formatted.length);
+            
+            if (hasCache) {
+                // 已有缓存时静默更新，不打扰用户
+                console.log('✅ 已从服务器更新数据');
+            } else {
+                // 无缓存时提示用户
+                showToast(`✅ 已加载「${REMOTE_EXCEL}」，共 ${formatted.length} 条`);
+            }
+        })
+        .catch(err => {
+            console.warn('⚠️ 从服务器加载 Excel 失败:', err.message);
+            // fetch 失败不影响使用：有缓存用缓存，无缓存就是空状态（可手动导入）
+        });
 }
 
 // DOM 加载完成后初始化
