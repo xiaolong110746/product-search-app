@@ -3073,7 +3073,7 @@ function initApp() {
 function loadRemoteExcel(hasCache) {
     const REMOTE_EXCEL = '烟草库存模板.xlsx';
     
-    fetch(REMOTE_EXCEL)
+    fetch(REMOTE_EXCEL + '?t=' + Date.now())
         .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.arrayBuffer();
