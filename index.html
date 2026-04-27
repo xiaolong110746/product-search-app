@@ -1042,12 +1042,29 @@ class SmartHighlightRenderer {
         // 这样"红河"文本匹配 + "rj"拼音匹配可以共存
         if (params.colDef.field === 'name' && params.data && params.data._pinyinFull) {
             const pinyinFull = params.data._pinyinFull;
+            // 构建位置映射：cleanIdx -> 原串idx（_pinyinFull与原文等长一一对应）
+            const cleanChars = [];
+            const cleanToOrig = []; // cleanToOrig[cleanIdx] = 原串位置
+            for (let i = 0; i < pinyinFull.length; i++) {
+                const ch = pinyinFull[i];
+                if (/[a-z0-9]/.test(ch)) {
+                    cleanToOrig.push(i);
+                    cleanChars.push(ch);
+                }
+            }
+            const cleanPinyin = cleanChars.join('');
             for (const kw of keywords) {
                 if (!kw || textMatchedKws.has(kw)) continue;
-                let idx = pinyinFull.indexOf(kw);
+                // 清理关键字中的非字母数字字符，在清理后的拼音中查找
+                const cleanKw = kw.replace(/[^a-z0-9]/g, '');
+                if (!cleanKw) continue;
+                let idx = cleanPinyin.indexOf(cleanKw);
                 while (idx !== -1) {
-                    markPositions.push({ start: idx, end: idx + kw.length });
-                    idx = pinyinFull.indexOf(kw, idx + kw.length);
+                    // 通过映射表将清理后拼音的位置转回原串位置
+                    const origStart = cleanToOrig[idx];
+                    const origEnd = cleanToOrig[idx + cleanKw.length - 1] + 1;
+                    markPositions.push({ start: origStart, end: origEnd });
+                    idx = cleanPinyin.indexOf(cleanKw, idx + cleanKw.length);
                 }
             }
         }
