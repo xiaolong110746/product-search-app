@@ -1437,7 +1437,7 @@ function processData(data, source) {
     // 添加拼音
     data.forEach(item => {
         item._pinyinFull = processPinyin(item.name);
-        item.namePinyin = item._pinyinFull.replace(/[^a-z]/g, ''); // 纯字母版，去掉括号等非字母字符
+        item.namePinyin = item._pinyinFull.replace(/[^a-z0-9]/g, ''); // 去掉括号等非字母数字字符，保留数字
     });
     
     allData = data;
