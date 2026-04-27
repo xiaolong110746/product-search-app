@@ -715,7 +715,7 @@ function directUpdateRowHighlights() {
             if (rowNode.data._isPlaceholder) continue;
             const isMatched = kwToCheck.some(kw =>
                 Object.values(rowNode.data).some(v => String(v).toLowerCase().includes(kw)) ||
-                (rowNode.data.namePinyin && rowNode.data.namePinyin.includes(kw))
+                matchByPinyin(rowNode.data, kw)
             );
             if (isMatched) {
                 matchedIndices.add(i);
@@ -828,7 +828,7 @@ function scrollToFirstMatchedRow(kw, forceScroll = false) {
         const item = rowNode.data;
         if (item._isPlaceholder) continue;
         const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
-        const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+        const hasPinyin = matchByPinyin(item, kw);
         if (hasText || hasPinyin) {
             if (firstIdx === -1) firstIdx = i;
             lastIdx = i;
@@ -1200,7 +1200,7 @@ class TagDotRenderer {
         const matched = currentKeywords.filter(kw => {
             if (!(kw in keywordColorIndex)) return false;
             const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
-            const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+            const hasPinyin = matchByPinyin(item, kw);
             return hasText || hasPinyin;
         });
         if (matched.length === 0) {
@@ -1282,7 +1282,7 @@ const gridOptions = {
         function isMatched(data) {
             return kwToCheck.some(kw =>
                 Object.values(data).some(v => String(v).toLowerCase().includes(kw)) ||
-                (data.namePinyin && data.namePinyin.includes(kw))
+                matchByPinyin(data, kw)
             );
         }
         if (!isMatched(item)) return '';
@@ -1425,11 +1425,19 @@ function parseExcelData(arrayBuffer) {
     }
 }
 
+// 拼音匹配辅助函数：去掉关键字中的非字母数字字符后，与纯字母拼音做匹配
+// 这样用户输入 clyg 或 cly(g 都能匹配到 clygdz（草绿烟(高等装)）
+function matchByPinyin(item, kw) {
+    if (!item.namePinyin || !kw) return false;
+    const cleanKw = kw.replace(/[^a-z0-9]/g, '');
+    return cleanKw.length > 0 && item.namePinyin.includes(cleanKw);
+}
+
 function processData(data, source) {
     // 添加拼音
     data.forEach(item => {
         item._pinyinFull = processPinyin(item.name);
-        item.namePinyin = item._pinyinFull;
+        item.namePinyin = item._pinyinFull.replace(/[^a-z]/g, ''); // 纯字母版，去掉括号等非字母字符
     });
     
     allData = data;
@@ -2224,7 +2232,7 @@ function getFirstMatchKeywordIndex(item, keywords) {
     for (let i = 0; i < keywords.length; i++) {
         const kw = keywords[i];
         const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
-        const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+        const hasPinyin = matchByPinyin(item, kw);
         if (hasText || hasPinyin) return i;
     }
     return keywords.length; // 兜底
@@ -2255,7 +2263,7 @@ function filterData(query) {
         // 任一关键字匹配即保留（OR 逻辑）
         return keywords.some(kw => {
             const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
-            const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+            const hasPinyin = matchByPinyin(item, kw);
             return hasText || hasPinyin;
         });
     });
@@ -2272,7 +2280,7 @@ function filterData(query) {
     for (const kw of keywords) {
         keywordMatchCount[kw] = allData.filter(item => {
             const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
-            const hasPinyin = item.namePinyin && item.namePinyin.includes(kw);
+            const hasPinyin = matchByPinyin(item, kw);
             return hasText || hasPinyin;
         }).length;
     }
