@@ -3484,6 +3484,12 @@ function renderMobileCards(data) {
 
     container.innerHTML = html;
 
+    // 底部预留空间：让最后一张卡片也能滚动到容器可见区域顶部
+    // padding = 容器可见高度，这样即使最后一张卡片也能完整滚到顶部
+    requestAnimationFrame(() => {
+        container.style.paddingBottom = container.clientHeight + 'px';
+    });
+
     // 绑定长按复制
     bindCardLongPress();
 }
@@ -3587,7 +3593,7 @@ function flashCards() {
     });
 }
 
-// 滚动手机端卡片列表到第一个匹配关键字的卡片（让整组卡片从视口顶部开始显示）
+// 滚动手机端卡片列表到第一个匹配关键字的卡片（让整组卡片从容器的可见顶部开始显示）
 function scrollToFirstMatchedCard(kw, forceScroll) {
     if (!isMobile() || !kw) return;
     const container = document.getElementById('mobileCardsContainer');
@@ -3609,15 +3615,19 @@ function scrollToFirstMatchedCard(kw, forceScroll) {
     }
     if (!firstMatchCard) return;
 
-    // 如果不强制滚动，检查首张匹配卡片是否已在视口内
+    // 用 getBoundingClientRect 实时计算位置（不受 offsetParent 影响，搜索框/状态条高度变化时自动适应）
+    const containerRect = container.getBoundingClientRect();
+    const cardRect = firstMatchCard.getBoundingClientRect();
+
+    // 如果不强制滚动，检查首张匹配卡片是否已在容器可见区域内
     if (!forceScroll) {
-        const containerRect = container.getBoundingClientRect();
-        const cardRect = firstMatchCard.getBoundingClientRect();
         if (cardRect.top >= containerRect.top && cardRect.top <= containerRect.bottom) return;
     }
 
-    // 平滑滚动到该卡片位置（留 8px 上边距）
-    const targetScrollTop = firstMatchCard.offsetTop - 8;
+    // 卡片在容器滚动坐标系中的位置 = 卡片与容器的视口偏移 + 容器当前滚动量
+    const cardOffsetInContainer = cardRect.top - containerRect.top + container.scrollTop;
+    // 目标：卡片出现在容器可见区域顶部，留 8px 上边距
+    const targetScrollTop = cardOffsetInContainer - 8;
     container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
 }
 
