@@ -1841,8 +1841,10 @@ function addKeyword(keyword, position = null) {
     renderSearchTags();
     triggerSearch();
     // 新标签添加后，滚动到该标签的第一个匹配行（让它显示在视口第一行，像 Excel 一样）
-    if (keywordHasMatch(keyword) && gridApi) {
-        setTimeout(() => scrollToFirstMatchedRow(keyword, true), 150);
+    if (keywordHasMatch(keyword)) {
+        if (gridApi) setTimeout(() => scrollToFirstMatchedRow(keyword, true), 150);
+        // 手机端：滚动卡片列表到第一张匹配卡片
+        setTimeout(() => scrollToFirstMatchedCard(keyword, true), 200);
     }
     // 标签高亮/闪烁（仅当有效标签 >= 2 个时）
     if (getEffectiveKeywordCount() >= 2 && keywordHasMatch(keyword)) {
@@ -2054,6 +2056,8 @@ function toggleMobileTagHighlight(kw, tagEl) {
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
         hoverScrollTimer = setTimeout(() => {
             scrollToFirstMatchedRow(kw);
+            // 手机端：滚动卡片列表到第一张匹配卡片
+            scrollToFirstMatchedCard(kw);
             hoverScrollTimer = null;
         }, 150);
     }
@@ -3581,6 +3585,40 @@ function flashCards() {
         void card.offsetWidth;
         card.classList.add('card-flash');
     });
+}
+
+// 滚动手机端卡片列表到第一个匹配关键字的卡片（让整组卡片从视口顶部开始显示）
+function scrollToFirstMatchedCard(kw, forceScroll) {
+    if (!isMobile() || !kw) return;
+    const container = document.getElementById('mobileCardsContainer');
+    if (!container) return;
+
+    // 遍历所有卡片，找到第一个匹配该关键字的
+    const cards = container.querySelectorAll('.product-card');
+    let firstMatchCard = null;
+    for (const card of cards) {
+        const idx = parseInt(card.dataset.idx);
+        const item = mobileCardData[idx];
+        if (!item) continue;
+        const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+        const hasPinyin = matchByPinyin(item, kw);
+        if (hasText || hasPinyin) {
+            firstMatchCard = card;
+            break;
+        }
+    }
+    if (!firstMatchCard) return;
+
+    // 如果不强制滚动，检查首张匹配卡片是否已在视口内
+    if (!forceScroll) {
+        const containerRect = container.getBoundingClientRect();
+        const cardRect = firstMatchCard.getBoundingClientRect();
+        if (cardRect.top >= containerRect.top && cardRect.top <= containerRect.bottom) return;
+    }
+
+    // 平滑滚动到该卡片位置（留 8px 上边距）
+    const targetScrollTop = firstMatchCard.offsetTop - 8;
+    container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
 }
 
 // ==========================================
