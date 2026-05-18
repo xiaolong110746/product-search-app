@@ -1998,16 +1998,18 @@ function createTagElement(kw, idx) {
         if (hoverScrollTimer) { clearTimeout(hoverScrollTimer); hoverScrollTimer = null; }
         smoothScrollTarget = null;
     });
-    // 桌面端：点击锁定焦点（复用手机端 toggleMobileTagHighlight 逻辑）
-    // 手机端跳过，避免 touchend 和 click 双重触发导致 toggle 失效
+    // 点击切换高亮（桌面端 + 手机端共用，时间戳防抖防止 touchend 和 click 双重触发）
+    let lastToggleTime = 0;
     tag.addEventListener('click', function(e) {
         if (e.target.classList.contains('search-tag-close')) return;
-        if (isMobile()) return;
+        const now = Date.now();
+        if (now - lastToggleTime < 300) return;
+        lastToggleTime = now;
         toggleMobileTagHighlight(kw, tag);
     });
 
     // ==========================================
-    // 手机端：点击切换高亮 + 长按删除
+    // 手机端：触摸切换高亮 + 长按删除
     // ==========================================
     let touchStartX = 0;
     let touchStartY = 0;
@@ -2047,7 +2049,10 @@ function createTagElement(kw, idx) {
     tag.addEventListener('touchend', function(e) {
         if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
         if (!longPressTriggered && !touchMoved) {
-            // 短按无移动 → 当作点击，切换高亮
+            // 短按无移动 → 当作点击，切换高亮（时间戳防抖，与 click 共享 lastToggleTime）
+            const now = Date.now();
+            if (now - lastToggleTime < 300) return;
+            lastToggleTime = now;
             toggleMobileTagHighlight(kw, tag);
         }
     });
