@@ -1999,8 +1999,10 @@ function createTagElement(kw, idx) {
         smoothScrollTarget = null;
     });
     // 桌面端：点击锁定焦点（复用手机端 toggleMobileTagHighlight 逻辑）
+    // 手机端跳过，避免 touchend 和 click 双重触发导致 toggle 失效
     tag.addEventListener('click', function(e) {
         if (e.target.classList.contains('search-tag-close')) return;
+        if (isMobile()) return;
         toggleMobileTagHighlight(kw, tag);
     });
 
