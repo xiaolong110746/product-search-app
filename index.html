@@ -560,6 +560,42 @@
             }
         }
 
+        /* 横屏提示覆盖层（手机端横屏时显示，引导用户旋转回竖屏） */
+        .landscape-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 999999;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #fff;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            font-size: 1.1rem;
+            text-align: center;
+            padding: 32px;
+        }
+        .landscape-overlay .rotate-icon {
+            font-size: 3rem;
+            animation: rotateHint 2s ease-in-out infinite;
+        }
+        @keyframes rotateHint {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-90deg); }
+            50% { transform: rotate(-90deg); }
+            75% { transform: rotate(0deg); }
+        }
+        .landscape-overlay .hint-text {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        /* 手机端横屏时显示提示 */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .landscape-overlay { display: flex; }
+        }
+
         /* 超小屏适配（≤380px，如小尺寸手机） */
         @media (max-width: 380px) {
             h1 { font-size: 1rem; }
@@ -621,6 +657,12 @@
     <div class="info-box" id="infoBox">
         💡 点击「📂 导入 Excel」按钮导入商品数据，系统将自动记住您选择的文件。
     </div>
+</div>
+
+<!-- 横屏提示覆盖层 -->
+<div id="landscapeOverlay" class="landscape-overlay">
+    <div class="rotate-icon">📱</div>
+    <div class="hint-text">请旋转手机至竖屏使用<br>本应用仅支持竖屏模式</div>
 </div>
 
 <!-- 扫码覆盖层 -->
@@ -3046,6 +3088,21 @@ function loadDemoData() {
 }
 
 // ==========================================
+// 竖屏锁定 - 阻止手机端自动横屏
+// ==========================================
+function lockPortraitOrientation() {
+    // 方案1: Screen Orientation API（PWA 全屏模式 / 部分浏览器支持）
+    if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('portrait').catch(function(err) {
+            // 非全屏模式下会报错，这是正常的，由 CSS 横屏提示层兜底
+            console.log('竖屏锁定需全屏模式，已由 CSS 横屏提示层兜底:', err.message);
+        });
+    }
+    // 方案2: 部分旧版浏览器使用 webkit 前缀
+    // （已通过 CSS @media orientation 提示层 + manifest.json orientation 兜底，无需额外处理）
+}
+
+// ==========================================
 // 页面初始化
 // ==========================================
 function initApp() {
@@ -3064,6 +3121,9 @@ function initApp() {
     
     // 初始化右键菜单
     initContextMenu();
+
+    // 竖屏锁定：尝试锁定屏幕方向为竖屏（PWA 全屏模式下生效）
+    lockPortraitOrientation();
     
     // 尝试从本地缓存加载数据（秒开）
     const savedData = loadData();
