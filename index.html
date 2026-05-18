@@ -3836,15 +3836,6 @@ if ('serviceWorker' in navigator) {
             .catch(err => {
                 console.error('❌ Service Worker 注册失败:', err);
             });
-
-        // 每次页面可见时检查一次更新
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                navigator.serviceWorker.getRegistration().then(reg => {
-                    if (reg) reg.update();
-                });
-            }
-        });
     });
 }
 </script>
