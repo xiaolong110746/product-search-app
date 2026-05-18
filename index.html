@@ -7,7 +7,7 @@
     
     <!-- PWA 配置 -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#f1f5f9">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -3329,36 +3329,8 @@ function tryLockOrientation() {
     });
 }
 
-// 手机端首次触摸时：请求全屏 + 锁定竖屏（Chrome standalone 模式下 orientation.lock 需要 fullscreen）
-function requestFullscreenAndLock() {
-    if (!isMobile()) return;
-    if (_orientationLocked) return;
-
-    var docEl = document.documentElement;
-    var requestFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
-
-    if (requestFs) {
-        requestFs.call(docEl).then(function() {
-            // 全屏成功后再锁定方向
-            setTimeout(tryLockOrientation, 300);
-        }).catch(function(err) {
-            console.log('全屏请求失败:', err.message);
-            // 全屏失败也没关系，CSS 横屏提示层兜底
-        });
-    }
-}
-
-// 监听全屏变化：进入全屏后立即尝试锁定竖屏
-document.addEventListener('fullscreenchange', function() {
-    if (document.fullscreenElement) {
-        setTimeout(tryLockOrientation, 100);
-    }
-});
-document.addEventListener('webkitfullscreenchange', function() {
-    if (document.webkitFullscreenElement) {
-        setTimeout(tryLockOrientation, 100);
-    }
-});
+// 注：PWA standalone 模式下无需 requestFullscreen()
+// 安卓系统状态栏不可隐藏，通过 theme-color 与背景色一致实现视觉融合
 
 // ==========================================
 // 手机端卡片模式
@@ -3696,16 +3668,7 @@ function initApp() {
     // 竖屏锁定：尝试锁定屏幕方向为竖屏（PWA 全屏模式下生效）
     lockPortraitOrientation();
 
-    // 手机端：首次触摸时请求全屏并锁定竖屏（Chrome standalone 模式下 orientation.lock 需要 fullscreen）
-    if (isMobile()) {
-        var _firstTouchHandler = function() {
-            requestFullscreenAndLock();
-            document.removeEventListener('touchstart', _firstTouchHandler);
-            document.removeEventListener('click', _firstTouchHandler);
-        };
-        document.addEventListener('touchstart', _firstTouchHandler, { passive: true });
-        document.addEventListener('click', _firstTouchHandler);
-    }
+    // 竖屏锁定已通过 manifest.json 的 orientation:portrait 实现，无需 requestFullscreen
     
     // 尝试从本地缓存加载数据（秒开）
     const savedData = loadData();
