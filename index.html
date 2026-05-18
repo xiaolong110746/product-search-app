@@ -951,7 +951,11 @@ function directUpdateRowHighlights() {
         // 先批量移除所有高亮类
         const existingEls = document.querySelectorAll('.ag-row.row-highlight-by-tag');
         existingEls.forEach(el => el.classList.remove('row-highlight-by-tag', 'hl-group-first', 'hl-group-last'));
-        if (!shouldHighlight) return;
+        // 无论是否需要高亮，都要同步更新手机端卡片状态（取消高亮时也需要清除卡片的 card-highlighted）
+        if (!shouldHighlight) {
+            updateCardHighlights();
+            return;
+        }
         // 遍历所有可见行，匹配的加上高亮类
         const count = gridApi.getDisplayedRowCount();
         const matchedIndices = new Set();
