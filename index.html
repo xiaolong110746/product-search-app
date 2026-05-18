@@ -600,6 +600,16 @@
             border-color: #f59e0b;
             background: #fffbeb;
         }
+        /* 卡片焦点：用户单击选中 */
+        .product-card.card-focused {
+            background: rgba(37, 99, 235, 0.08);
+        }
+        .product-card.card-focused .card-price-col.col-strip {
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+        .product-card.card-focused .card-price-col.col-pack {
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
         .product-card.card-flash {
             animation: cardFlash 0.5s ease-in-out;
         }
@@ -3555,6 +3565,29 @@ function bindCardLongPress() {
     });
 }
 
+// 卡片焦点切换（单击选中/取消）
+function bindCardFocusToggle() {
+    const container = document.getElementById('mobileCardsContainer');
+    if (!container) return;
+
+    container.addEventListener('click', function(e) {
+        // 忽略详情按钮的点击
+        if (e.target.closest('.card-expand-btn')) return;
+
+        const card = e.target.closest('.product-card');
+        if (!card) return;
+
+        // 切换焦点
+        if (card.classList.contains('card-focused')) {
+            card.classList.remove('card-focused');
+        } else {
+            // 取消其他卡片的焦点
+            container.querySelectorAll('.product-card.card-focused').forEach(c => c.classList.remove('card-focused'));
+            card.classList.add('card-focused');
+        }
+    });
+}
+
 // 更新卡片高亮状态（标签点击/悬停时调用）
 function updateCardHighlights() {
     if (!isMobile()) return;
@@ -3667,6 +3700,9 @@ function initApp() {
     // 初始化右键菜单
     initContextMenu();
 
+    // 初始化卡片焦点切换（事件委托，只需绑定一次）
+    bindCardFocusToggle();
+
     // 竖屏锁定：尝试锁定屏幕方向为竖屏（PWA 全屏模式下生效）
     lockPortraitOrientation();
 
@@ -3766,17 +3802,49 @@ window.addEventListener('resize', function() {
 });
 
 // ==========================================
-// Service Worker 注册
+// Service Worker 注册（自动检测更新）
 // ==========================================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
             .then(registration => {
                 console.log('✅ Service Worker 注册成功:', registration.scope);
+
+                // 检测到新 SW 等待激活时，立即激活（无需用户关闭所有标签页）
+                if (registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+
+                // 监听新 SW 安装事件
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // 新版本已就绪，立即激活
+                            console.log('🔄 检测到新版本，正在激活...');
+                            newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                    });
+                });
+
+                // 新 SW 激活后，自动刷新页面加载最新内容
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('✅ 新版本已激活，刷新页面');
+                    window.location.reload();
+                });
             })
             .catch(err => {
                 console.error('❌ Service Worker 注册失败:', err);
             });
+
+        // 每次页面可见时检查一次更新
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                navigator.serviceWorker.getRegistration().then(reg => {
+                    if (reg) reg.update();
+                });
+            }
+        });
     });
 }
 </script>
