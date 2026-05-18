@@ -653,6 +653,9 @@
             grid-template-columns: 1fr 1fr;
             gap: 2px 10px;
         }
+        .card-price-full {
+            grid-column: 1 / -1;
+        }
         .card-price-item {
             display: flex;
             justify-content: space-between;
@@ -3469,13 +3472,13 @@ function renderMobileCards(data) {
             +   (tagDotsHtml ? '<div class="card-tag-dots">' + tagDotsHtml + '</div>' : '')
             + '</div>'
             + '<div class="card-prices">'
+            +   '<div class="card-price-item card-price-full"><span class="card-price-label">进价</span><span class="card-price-value">' + highlightCardText(formatCardPrice(item.cost), keywords) + '</span></div>'
             +   '<div class="card-price-item"><span class="card-price-label">条售价</span><span class="card-price-value price-primary">' + highlightCardText(formatCardPrice(item.priceStrip), keywords) + '</span></div>'
-            +   '<div class="card-price-item"><span class="card-price-label">建议条</span><span class="card-price-value">' + highlightCardText(formatCardPrice(item.suggestStrip), keywords) + '</span></div>'
             +   '<div class="card-price-item"><span class="card-price-label">包售价</span><span class="card-price-value">' + highlightCardText(formatCardPrice(item.pricePack), keywords) + '</span></div>'
-            +   '<div class="card-price-item"><span class="card-price-label">进价</span><span class="card-price-value">' + highlightCardText(formatCardPrice(item.cost), keywords) + '</span></div>'
+            +   '<div class="card-price-item"><span class="card-price-label">建议条</span><span class="card-price-value">' + highlightCardText(formatCardPrice(item.suggestStrip), keywords) + '</span></div>'
+            +   '<div class="card-price-item"><span class="card-price-label">建议包</span><span class="card-price-value">' + highlightCardText(formatCardPrice(item.suggestPack), keywords) + '</span></div>'
             + '</div>'
             + '<div class="card-details">'
-            +   '<div class="card-detail-row"><span class="card-detail-label">建议包价</span><span class="card-detail-value">' + highlightCardText(formatCardPrice(item.suggestPack), keywords) + '</span></div>'
             +   '<div class="card-detail-row"><span class="card-detail-label">条码</span><span class="card-detail-value">' + (barcodeHtml || '-') + '</span></div>'
             +   '<div class="card-detail-row"><span class="card-detail-label">包码</span><span class="card-detail-value">' + (packCodeHtml || '-') + '</span></div>'
             +   (item.remark ? '<div class="card-detail-row"><span class="card-detail-label">备注</span><span class="card-detail-value">' + remarkHtml + '</span></div>' : '')
