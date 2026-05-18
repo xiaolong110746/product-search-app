@@ -1831,6 +1831,8 @@ function addKeyword(keyword, position = null) {
             directUpdateRowHighlights();
             scheduleRedraw(50);
             setTimeout(() => scrollToFirstMatchedRow(keyword), 150);
+            // 手机端：滚动卡片列表到第一张匹配卡片
+            setTimeout(() => scrollToFirstMatchedCard(keyword), 200);
             startBlinkAutoStop(); // 启动17秒自动停止
         }
         return;
