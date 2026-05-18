@@ -4,8 +4,8 @@
     "description": "商品查询系统 - 支持扫码、搜索、筛选的离线商品管理工具",
     "start_url": "./index.html",
     "display": "standalone",
-    "background_color": "#f1f5f9",
-    "theme_color": "#f1f5f9",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
     "orientation": "portrait",
     "icons": [
         {
