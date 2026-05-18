@@ -3535,10 +3535,8 @@ function bindCardLongPress() {
                 const idx = parseInt(card.dataset.idx);
                 const item = mobileCardData[idx];
                 if (!item) return;
-                // 组合复制文本
+                // 复制品名
                 let copyText = item.name || '';
-                if (item.priceStrip) copyText += ' 条价¥' + Number(item.priceStrip).toFixed(1);
-                if (item.barcodeStrip) copyText += ' ' + item.barcodeStrip;
                 navigator.clipboard.writeText(copyText).then(function() {
                     showToast('✅ 已复制: ' + item.name);
                 }).catch(function() {
