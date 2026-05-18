@@ -558,6 +558,189 @@
                 flex-wrap: nowrap;
                 overflow-x: auto;
             }
+
+            /* 手机端：隐藏 AG Grid 表格，显示卡片列表 */
+            .grid-container {
+                height: 1px !important;
+                min-height: 1px !important;
+                flex: 0 0 1px !important;
+                overflow: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+            .mobile-cards-container { display: block !important; }
+        }
+
+        /* ==========================================
+           手机端卡片模式样式
+           ========================================== */
+        .mobile-cards-container {
+            display: none;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            margin: 8px 10px;
+            padding: 12px 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            position: relative;
+            border: 2px solid transparent;
+            -webkit-tap-highlight-color: transparent;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .product-card:active {
+            background: #f8fafc;
+        }
+
+        /* 卡片高亮：标签激活时匹配的卡片 */
+        .product-card.card-highlighted {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+        .product-card.card-flash {
+            animation: cardFlash 0.5s ease-in-out;
+        }
+        @keyframes cardFlash {
+            0%, 100% { background: #fffbeb; }
+            50% { background: #fef3c7; }
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+            gap: 6px;
+        }
+        .card-product-name {
+            font-size: 1.02rem;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.35;
+            flex: 1;
+            word-break: break-all;
+        }
+        .card-product-name .highlight-text {
+            background-color: #fef08a;
+            color: #854d0e;
+            padding: 0 3px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+        .card-tag-dots {
+            display: flex;
+            gap: 3px;
+            flex-shrink: 0;
+            padding-top: 3px;
+        }
+        .card-tag-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+
+        .card-prices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px 10px;
+        }
+        .card-price-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 3px 0;
+        }
+        .card-price-label {
+            color: #94a3b8;
+            font-size: 0.76rem;
+        }
+        .card-price-value {
+            font-weight: 600;
+            color: #334155;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.88rem;
+        }
+        .card-price-value.price-primary {
+            color: #2563eb;
+            font-size: 0.98rem;
+            font-weight: 700;
+        }
+        .card-price-value .highlight-text {
+            background-color: #fef08a;
+            color: #854d0e;
+            padding: 0 3px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        .card-details {
+            border-top: 1px solid #f1f5f9;
+            margin-top: 8px;
+            padding-top: 6px;
+            display: none;
+        }
+        .card-details.expanded {
+            display: block;
+        }
+        .card-detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            padding: 3px 0;
+        }
+        .card-detail-label {
+            color: #94a3b8;
+            flex-shrink: 0;
+        }
+        .card-detail-value {
+            color: #475569;
+            text-align: right;
+            word-break: break-all;
+            margin-left: 10px;
+            font-variant-numeric: tabular-nums;
+        }
+        .card-detail-value .highlight-text {
+            background-color: #fef08a;
+            color: #854d0e;
+            padding: 0 3px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        .card-expand-btn {
+            text-align: center;
+            color: #cbd5e1;
+            font-size: 0.7rem;
+            margin-top: 4px;
+            cursor: pointer;
+            padding: 4px 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .card-expand-btn .arrow {
+            display: inline-block;
+            transition: transform 0.2s;
+            font-size: 0.55rem;
+        }
+        .card-expand-btn.expanded .arrow {
+            transform: rotate(180deg);
+        }
+
+        /* 卡片空状态 */
+        .cards-empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: #94a3b8;
+            font-size: 0.95rem;
         }
 
         /* 横屏提示覆盖层（手机端横屏时显示，引导用户旋转回竖屏） */
@@ -591,8 +774,8 @@
             opacity: 0.9;
             line-height: 1.6;
         }
-        /* 手机端横屏时显示提示 */
-        @media (max-width: 768px) and (orientation: landscape) {
+        /* 手机端横屏时显示提示（用 max-height 判断手机设备，横屏时高度很小） */
+        @media (max-height: 500px) and (orientation: landscape) {
             .landscape-overlay { display: flex; }
         }
 
@@ -648,6 +831,9 @@
     <div id="myGrid" class="grid-container ag-theme-alpine">
         <div class="loading" id="loadingIndicator">正在加载...</div>
     </div>
+
+    <!-- 手机端卡片列表（桌面端隐藏） -->
+    <div id="mobileCardsContainer" class="mobile-cards-container"></div>
 
     <div class="footer">
         <span id="dataSource">当前数据：加载中...</span>
@@ -771,6 +957,8 @@ function directUpdateRowHighlights() {
             if (!matchedIndices.has(idx - 1)) rowNode.rowElement.classList.add('hl-group-first');
             if (!matchedIndices.has(idx + 1)) rowNode.rowElement.classList.add('hl-group-last');
         }
+        // 同步更新手机端卡片高亮
+        updateCardHighlights();
     });
 }
 
@@ -801,6 +989,8 @@ function startFlashTimer() {
             if (flashOn) gridEl.classList.add('flash-on');
             else gridEl.classList.remove('flash-on');
         }
+        // 手机端卡片同步闪烁
+        if (flashOn) flashCards();
     }, 500);
 }
 function stopFlashTimer() {
@@ -3090,16 +3280,307 @@ function loadDemoData() {
 // ==========================================
 // 竖屏锁定 - 阻止手机端自动横屏
 // ==========================================
+let _orientationLocked = false;
+
 function lockPortraitOrientation() {
-    // 方案1: Screen Orientation API（PWA 全屏模式 / 部分浏览器支持）
-    if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('portrait').catch(function(err) {
-            // 非全屏模式下会报错，这是正常的，由 CSS 横屏提示层兜底
-            console.log('竖屏锁定需全屏模式，已由 CSS 横屏提示层兜底:', err.message);
+    // 直接尝试锁定（manifest.json 设置了 orientation:portrait 的 PWA 中生效）
+    tryLockOrientation();
+}
+
+// 尝试锁定屏幕方向
+function tryLockOrientation() {
+    if (_orientationLocked) return;
+    if (!screen.orientation || !screen.orientation.lock) return;
+
+    screen.orientation.lock('portrait').then(function() {
+        _orientationLocked = true;
+        console.log('✅ 竖屏锁定成功');
+    }).catch(function(err) {
+        console.log('竖屏锁定失败（需全屏模式）:', err.message);
+    });
+}
+
+// 手机端首次触摸时：请求全屏 + 锁定竖屏（Chrome standalone 模式下 orientation.lock 需要 fullscreen）
+function requestFullscreenAndLock() {
+    if (!isMobile()) return;
+    if (_orientationLocked) return;
+
+    var docEl = document.documentElement;
+    var requestFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
+
+    if (requestFs) {
+        requestFs.call(docEl).then(function() {
+            // 全屏成功后再锁定方向
+            setTimeout(tryLockOrientation, 300);
+        }).catch(function(err) {
+            console.log('全屏请求失败:', err.message);
+            // 全屏失败也没关系，CSS 横屏提示层兜底
         });
     }
-    // 方案2: 部分旧版浏览器使用 webkit 前缀
-    // （已通过 CSS @media orientation 提示层 + manifest.json orientation 兜底，无需额外处理）
+}
+
+// 监听全屏变化：进入全屏后立即尝试锁定竖屏
+document.addEventListener('fullscreenchange', function() {
+    if (document.fullscreenElement) {
+        setTimeout(tryLockOrientation, 100);
+    }
+});
+document.addEventListener('webkitfullscreenchange', function() {
+    if (document.webkitFullscreenElement) {
+        setTimeout(tryLockOrientation, 100);
+    }
+});
+
+// ==========================================
+// 手机端卡片模式
+// ==========================================
+let mobileCardData = []; // 当前卡片显示的数据（不含占位行）
+
+// 卡片专用高亮函数（复用与 SmartHighlightRenderer 相同的逻辑）
+function highlightCardText(text, keywords, isNameField, pinyinFull) {
+    if (!text) return '';
+    const str = String(text);
+    if (!keywords || keywords.length === 0) return escapeHtml(str);
+
+    const lowerText = str.toLowerCase();
+    let markPositions = [];
+    const textMatchedKws = new Set();
+
+    // 文本匹配
+    for (const kw of keywords) {
+        if (!kw) continue;
+        let idx = lowerText.indexOf(kw);
+        while (idx !== -1) {
+            markPositions.push({ start: idx, end: idx + kw.length });
+            textMatchedKws.add(kw);
+            idx = lowerText.indexOf(kw, idx + kw.length);
+        }
+    }
+
+    // 拼音匹配（仅商品名称列）
+    if (isNameField && pinyinFull) {
+        const cleanChars = [];
+        const cleanToOrig = [];
+        for (let i = 0; i < pinyinFull.length; i++) {
+            const ch = pinyinFull[i];
+            if (/[a-z0-9]/.test(ch)) {
+                cleanToOrig.push(i);
+                cleanChars.push(ch);
+            }
+        }
+        const cleanPinyin = cleanChars.join('');
+        for (const kw of keywords) {
+            if (!kw || textMatchedKws.has(kw)) continue;
+            const cleanKw = kw.replace(/[^a-z0-9]/g, '');
+            if (!cleanKw) continue;
+            let idx = cleanPinyin.indexOf(cleanKw);
+            while (idx !== -1) {
+                const origStart = cleanToOrig[idx];
+                const origEnd = cleanToOrig[idx + cleanKw.length - 1] + 1;
+                markPositions.push({ start: origStart, end: origEnd });
+                idx = cleanPinyin.indexOf(cleanKw, idx + cleanKw.length);
+            }
+        }
+    }
+
+    // 合并重叠区间
+    markPositions.sort((a, b) => a.start - b.start);
+    let merged = [];
+    for (const pos of markPositions) {
+        if (merged.length > 0 && pos.start <= merged[merged.length - 1].end) {
+            merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, pos.end);
+        } else {
+            merged.push({ start: pos.start, end: pos.end });
+        }
+    }
+
+    // 构建高亮 HTML
+    let highlighted = escapeHtml(str);
+    if (merged.length > 0) {
+        let chars = Array.from(highlighted);
+        for (let i = merged.length - 1; i >= 0; i--) {
+            const { start, end } = merged[i];
+            const matched = chars.slice(start, end).join('');
+            chars.splice(start, end - start, '<span class="highlight-text">' + matched + '</span>');
+        }
+        highlighted = chars.join('');
+    }
+    return highlighted;
+}
+
+// 格式化价格
+function formatCardPrice(val) {
+    if (val === null || val === undefined || val === '') return '-';
+    return '¥' + Number(val).toFixed(1);
+}
+
+// 渲染手机端卡片列表
+function renderMobileCards(data) {
+    const container = document.getElementById('mobileCardsContainer');
+    if (!container) return;
+
+    // 非手机端不渲染
+    if (!isMobile()) { container.innerHTML = ''; return; }
+
+    mobileCardData = data || [];
+    const keywords = parseKeywords(currentSearchText);
+
+    if (mobileCardData.length === 0) {
+        container.innerHTML = '<div class="cards-empty">暂无匹配数据</div>';
+        return;
+    }
+
+    let html = '';
+    for (let i = 0; i < mobileCardData.length; i++) {
+        const item = mobileCardData[i];
+        if (item._isPlaceholder) continue;
+
+        // 匹配标签的颜色圆点
+        const matchedKws = currentKeywords.filter(kw => {
+            if (!(kw in keywordColorIndex)) return false;
+            const hasText = Object.values(item).some(val => String(val).toLowerCase().includes(kw));
+            const hasPinyin = matchByPinyin(item, kw);
+            return hasText || hasPinyin;
+        });
+
+        const isHighlighted = activeMobileKeyword && matchedKws.includes(activeMobileKeyword);
+
+        const tagDotsHtml = matchedKws.map(kw => {
+            const color = TAG_COLORS[keywordColorIndex[kw]];
+            return '<span class="card-tag-dot" style="background:' + color.bg + '"></span>';
+        }).join('');
+
+        const nameHtml = highlightCardText(item.name, keywords, true, item._pinyinFull);
+        const barcodeHtml = highlightCardText(item.barcodeStrip, keywords);
+        const packCodeHtml = highlightCardText(item.barcodePack, keywords);
+        const remarkHtml = highlightCardText(item.remark, keywords);
+
+        const cardId = 'card-' + i;
+
+        html += '<div class="product-card' + (isHighlighted ? ' card-highlighted' : '') + '" id="' + cardId + '" data-idx="' + i + '">'
+            + '<div class="card-header">'
+            +   '<div class="card-product-name">' + nameHtml + '</div>'
+            +   (tagDotsHtml ? '<div class="card-tag-dots">' + tagDotsHtml + '</div>' : '')
+            + '</div>'
+            + '<div class="card-prices">'
+            +   '<div class="card-price-item"><span class="card-price-label">条售价</span><span class="card-price-value price-primary">' + formatCardPrice(item.priceStrip) + '</span></div>'
+            +   '<div class="card-price-item"><span class="card-price-label">建议条</span><span class="card-price-value">' + formatCardPrice(item.suggestStrip) + '</span></div>'
+            +   '<div class="card-price-item"><span class="card-price-label">包售价</span><span class="card-price-value">' + formatCardPrice(item.pricePack) + '</span></div>'
+            +   '<div class="card-price-item"><span class="card-price-label">进价</span><span class="card-price-value">' + formatCardPrice(item.cost) + '</span></div>'
+            + '</div>'
+            + '<div class="card-details">'
+            +   '<div class="card-detail-row"><span class="card-detail-label">建议包价</span><span class="card-detail-value">' + formatCardPrice(item.suggestPack) + '</span></div>'
+            +   '<div class="card-detail-row"><span class="card-detail-label">条码</span><span class="card-detail-value">' + (barcodeHtml || '-') + '</span></div>'
+            +   '<div class="card-detail-row"><span class="card-detail-label">包码</span><span class="card-detail-value">' + (packCodeHtml || '-') + '</span></div>'
+            +   (item.remark ? '<div class="card-detail-row"><span class="card-detail-label">备注</span><span class="card-detail-value">' + remarkHtml + '</span></div>' : '')
+            + '</div>'
+            + '<div class="card-expand-btn" onclick="toggleCardDetail(this)"><span class="arrow">▼</span> 详情</div>'
+            + '</div>';
+    }
+
+    container.innerHTML = html;
+
+    // 绑定长按复制
+    bindCardLongPress();
+}
+
+// 展开/收起卡片详情
+function toggleCardDetail(btnEl) {
+    const card = btnEl.closest('.product-card');
+    if (!card) return;
+    const details = card.querySelector('.card-details');
+    const isExpanded = details.classList.contains('expanded');
+    details.classList.toggle('expanded');
+    btnEl.classList.toggle('expanded');
+    btnEl.innerHTML = isExpanded ? '<span class="arrow">▼</span> 详情' : '<span class="arrow">▲</span> 收起';
+}
+
+// 卡片长按复制
+function bindCardLongPress() {
+    const container = document.getElementById('mobileCardsContainer');
+    if (!container) return;
+
+    container.querySelectorAll('.product-card').forEach(function(card) {
+        let longPressTimer = null;
+        let touchMoved = false;
+
+        card.addEventListener('touchstart', function(e) {
+            touchMoved = false;
+            longPressTimer = setTimeout(function() {
+                const idx = parseInt(card.dataset.idx);
+                const item = mobileCardData[idx];
+                if (!item) return;
+                // 组合复制文本
+                let copyText = item.name || '';
+                if (item.priceStrip) copyText += ' 条价¥' + Number(item.priceStrip).toFixed(1);
+                if (item.barcodeStrip) copyText += ' ' + item.barcodeStrip;
+                navigator.clipboard.writeText(copyText).then(function() {
+                    showToast('✅ 已复制: ' + item.name);
+                }).catch(function() {
+                    var ta = document.createElement('textarea');
+                    ta.value = copyText;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast('✅ 已复制: ' + item.name);
+                });
+                if (navigator.vibrate) navigator.vibrate(30);
+            }, 600);
+        }, { passive: true });
+
+        card.addEventListener('touchmove', function() {
+            touchMoved = true;
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        }, { passive: true });
+
+        card.addEventListener('touchend', function() {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        });
+    });
+}
+
+// 更新卡片高亮状态（标签点击/悬停时调用）
+function updateCardHighlights() {
+    if (!isMobile()) return;
+    const container = document.getElementById('mobileCardsContainer');
+    if (!container) return;
+
+    const kwToCheck = activeMobileKeyword ? [activeMobileKeyword] : [];
+    const shouldHighlight = getEffectiveKeywordCount() >= 2 && kwToCheck.length > 0;
+
+    container.querySelectorAll('.product-card').forEach(function(card) {
+        const idx = parseInt(card.dataset.idx);
+        const item = mobileCardData[idx];
+        if (!item) return;
+
+        if (shouldHighlight) {
+            const isMatched = kwToCheck.some(kw =>
+                Object.values(item).some(v => String(v).toLowerCase().includes(kw)) ||
+                matchByPinyin(item, kw)
+            );
+            if (isMatched) {
+                card.classList.add('card-highlighted');
+            } else {
+                card.classList.remove('card-highlighted');
+            }
+        } else {
+            card.classList.remove('card-highlighted');
+        }
+    });
+}
+
+// 卡片闪烁（与表格行闪烁同步）
+function flashCards() {
+    if (!isMobile()) return;
+    const container = document.getElementById('mobileCardsContainer');
+    if (!container) return;
+    container.querySelectorAll('.product-card.card-highlighted').forEach(function(card) {
+        card.classList.remove('card-flash');
+        // 触发 reflow 重新播放动画
+        void card.offsetWidth;
+        card.classList.add('card-flash');
+    });
 }
 
 // ==========================================
@@ -3112,6 +3593,17 @@ function initApp() {
     const gridDiv = document.querySelector('#myGrid');
     document.getElementById('loadingIndicator').remove();
     gridApi = agGrid.createGrid(gridDiv, gridOptions);
+
+    // 拦截 setGridOption：设置 rowData 时自动渲染手机端卡片
+    const _originalSetGridOption = gridApi.setGridOption.bind(gridApi);
+    gridApi.setGridOption = function(key, value) {
+        _originalSetGridOption(key, value);
+        if (key === 'rowData') {
+            // 过滤掉占位空行，只传真实数据给卡片
+            const realData = (value || []).filter(item => !item._isPlaceholder);
+            renderMobileCards(realData);
+        }
+    };
     
     // 初始化扫码逻辑
     initScannerLogic();
@@ -3124,6 +3616,17 @@ function initApp() {
 
     // 竖屏锁定：尝试锁定屏幕方向为竖屏（PWA 全屏模式下生效）
     lockPortraitOrientation();
+
+    // 手机端：首次触摸时请求全屏并锁定竖屏（Chrome standalone 模式下 orientation.lock 需要 fullscreen）
+    if (isMobile()) {
+        var _firstTouchHandler = function() {
+            requestFullscreenAndLock();
+            document.removeEventListener('touchstart', _firstTouchHandler);
+            document.removeEventListener('click', _firstTouchHandler);
+        };
+        document.addEventListener('touchstart', _firstTouchHandler, { passive: true });
+        document.addEventListener('click', _firstTouchHandler);
+    }
     
     // 尝试从本地缓存加载数据（秒开）
     const savedData = loadData();
@@ -3209,6 +3712,8 @@ window.addEventListener('resize', function() {
                 console.log(currentType ? '📱 切换到手机端列配置' : '🖥️ 切换到桌面端列配置');
                 gridApi.setGridOption('columnDefs', getColumnDefs());
                 gridApi.autoSizeAllColumns();
+                // 切换设备类型时刷新卡片（手机端渲染，桌面端清空）
+                renderMobileCards(allData);
             } else {
                 gridApi.autoSizeAllColumns();
             }
