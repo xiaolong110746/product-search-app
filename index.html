@@ -2153,7 +2153,7 @@ function renderSearchTags() {
     }
     // 更新 placeholder
     input.placeholder = currentKeywords.length === 0
-        ? (isMobile() ? '输入关键字查询...' : '扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询...')
+        ? (isMobile() ? '输入任意关键字或拼音首字母进行查询...' : '扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询...')
         : '';
     // 调整 input 宽度
     updateInputStyle();
