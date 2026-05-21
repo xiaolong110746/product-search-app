@@ -2600,7 +2600,8 @@ function filterData(query) {
 function updateCount(n) { 
     if (isMobile()) {
         const total = allData.length;
-        document.getElementById('recordCount').textContent = n === total ? `共 ${total} 条` : `匹配 ${n} / 共 ${total} 条`;
+        const hasActiveSearch = currentKeywords.length > 0;
+        document.getElementById('recordCount').textContent = hasActiveSearch ? `匹配 ${n} / 共 ${total} 条` : `共 ${total} 条`;
     } else {
         document.getElementById('recordCount').textContent = `当前: ${n} 条`;
     }
@@ -2616,7 +2617,8 @@ function updateFooterCount() {
         }
         if (isMobile()) {
             const total = allData.length;
-            document.getElementById('recordCount').textContent = count === total ? `共 ${total} 条` : `匹配 ${count} / 共 ${total} 条`;
+            const hasActiveSearch = currentKeywords.length > 0;
+            document.getElementById('recordCount').textContent = hasActiveSearch ? `匹配 ${count} / 共 ${total} 条` : `共 ${total} 条`;
         } else {
             document.getElementById('recordCount').textContent = `当前: ${count} 条`;
         }
