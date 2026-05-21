@@ -3728,6 +3728,9 @@ function initApp() {
         updateInfoBox(false);
     }
     
+    // 根据设备类型设置搜索框 placeholder
+    input.placeholder = isMobile() ? '输入任意关键字或拼音首字母进行查询...' : '扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询...';
+
     console.log('✅ 应用初始化完成');
     // 延迟计算视口能容纳的行数（等数据渲染完）
     setTimeout(calcViewportRowCount, 300);
