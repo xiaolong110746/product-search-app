@@ -461,9 +461,8 @@
             #infoBox { display: none !important; }
             * { -webkit-tap-highlight-color: transparent; }
 
-            /* Header */
-            header { margin-bottom: 8px; gap: 8px; }
-            h1 { font-size: 1.15rem; }
+            /* Header - 手机端隐藏整个标题栏 */
+            header { display: none; }
             .subtitle { font-size: 0.75rem; }
 
             /* Header 按钮 */
@@ -836,7 +835,7 @@
 
     <div class="search-box">
         <div id="searchContainer" class="search-container">
-            <input type="text" id="searchInput" class="search-inline-input" placeholder="输入关键字模糊查询..." data-desktop-placeholder="扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询..." data-mobile-placeholder="输入关键字查询..." autofocus>
+            <input type="text" id="searchInput" class="search-inline-input" placeholder="输入关键字模糊查询..." data-desktop-placeholder="扫码或输入以空格/tab/逗号为分隔符的关键字列表进行模糊查询..." data-mobile-placeholder="输入任意关键字或拼音首字母进行查询..." autofocus>
         </div>
         <button id="scanBtn" class="scan-btn" onclick="startCameraScan()">📷</button>
     </div>
