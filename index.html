@@ -533,8 +533,23 @@
             .filter-status .clear-btn.all { display: none; } /* 手机端无表格，隐藏清除列筛选和清除全部按钮 */
             .filter-status .btn-group { gap: 3px; flex-shrink: 0; }
 
-            /* 页脚 */
-            .footer { font-size: 0.85rem; margin-top: 6px; }
+            /* 页脚 - 手机端吸底 */
+            .footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                font-size: 0.82rem;
+                margin-top: 0;
+                padding: 6px 14px;
+                background: rgba(255,255,255,0.92);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                border-top: 1px solid #e2e8f0;
+                z-index: 100;
+                justify-content: center;
+            }
+            .footer #dataSource { display: none; }
 
             /* Info-box */
             .info-box { font-size: 0.82rem; padding: 8px 10px; margin-top: 6px; line-height: 1.4; }
@@ -565,7 +580,7 @@
                 border: none !important;
                 border-radius: 0 !important;
             }
-            .mobile-cards-container { display: block !important; }
+            .mobile-cards-container { display: block !important; padding-bottom: 36px; }
         }
 
         /* ==========================================
@@ -1728,7 +1743,7 @@ function processData(data, source) {
     }
     
     document.getElementById('dataSource').innerHTML = `数据：<span class="file-name">${source}</span>`;
-    document.getElementById('recordCount').textContent = `共 ${data.length} 条`;
+    document.getElementById('recordCount').textContent = isMobile() ? `共 ${data.length} 条` : `共 ${data.length} 条`;
 }
 
 // ==========================================
@@ -2583,7 +2598,12 @@ function filterData(query) {
 }
 
 function updateCount(n) { 
-    document.getElementById('recordCount').textContent = `当前: ${n} 条`; 
+    if (isMobile()) {
+        const total = allData.length;
+        document.getElementById('recordCount').textContent = n === total ? `共 ${total} 条` : `匹配 ${n} / 共 ${total} 条`;
+    } else {
+        document.getElementById('recordCount').textContent = `当前: ${n} 条`;
+    }
 }
 
 // 更新页脚记录数（根据当前表格显示的行数）
@@ -2594,7 +2614,12 @@ function updateFooterCount() {
         if (placeholderRowCount > 0 && count > 0) {
             count = Math.max(0, count - placeholderRowCount);
         }
-        document.getElementById('recordCount').textContent = `当前: ${count} 条`;
+        if (isMobile()) {
+            const total = allData.length;
+            document.getElementById('recordCount').textContent = count === total ? `共 ${total} 条` : `匹配 ${count} / 共 ${total} 条`;
+        } else {
+            document.getElementById('recordCount').textContent = `当前: ${count} 条`;
+        }
     }
 }
 
